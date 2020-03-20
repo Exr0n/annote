@@ -2,7 +2,7 @@
 <html>
     <head>
         <meta charset="utf-8"/>
-        <title>Marked in the browser</title>
+        <title>annote</title>
 <style>
 .note-display {
     border: 1px solid black;
@@ -22,12 +22,17 @@
     height: 100%;
 }
 </style>
+    <!-- codemirror imports: https://stackoverflow.com/a/15184747 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/codemirror.min.js" integrity="sha256-id5Qk/MwQJxgNlDFDpVymUuReXfTUZiaQKb8arrddQM=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/addon/search/searchcursor.min.js" integrity="sha256-LE6iKRf3wBxVYAW8kInWVcU3A9hYtDaphl4Wgdg4ZkU=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/addon/dialog/dialog.min.js" integrity="sha256-G+QhvxjUNi5P5cyQqjROwriSUy2lZtCFUQh+8W1o6I0=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/keymap/vim.min.js" integrity="sha256-HO17+WfWPfzGbU+OcIRvK69+/FLK2w5wLV+Xw2dhvOw=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/mode/markdown/markdown.min.js" integrity="sha256-tD4fOOV1dP+fQrZwpE/IbAw1/0BXPYusHBQYCEfpgqg=" crossorigin="anonymous"></script>
     </head>
     <body>
         <!-- Marked test: https://github.com/markedjs/marked -->
         <div class="note-display" id="rendered" ></div>
         <textarea class="note-edit" style="display: none;" id="editor" contenteditable ></textarea>
-        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <script src=" https://cdn.jsdelivr.net/npm/showdown@1.9.0/dist/showdown.min.js"></script>
         <script src="main.js"></script>
         <code id="selectionLog" ></code>

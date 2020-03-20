@@ -3,6 +3,19 @@ var rendered, ediitor;
 const converter = new showdown.Converter();
 converter.setFlavor('github');
 
+CodeMirror.commands.save = function () {
+    alert("Saving");
+    render();
+};
+
+// code mirror opts
+const cmOpts = {
+    lineNumbers: true,
+    mode: "markdown",
+    keyMap: "vim",
+    showCursorWhenSelecting: true
+}
+
 const edit = () => {
     const sanitize = (html) => {
         let markdown = converter.makeMarkdown(html);
@@ -16,6 +29,7 @@ const edit = () => {
     editor.style.display = "inherit";
 
     editor.value = sanitize(rendered.innerHTML);
+    var myCodeMirror = CodeMirror.fromTextArea(editor, cmOpts);
 }
 const render = () => {
     editor.style.display = "none";
@@ -32,6 +46,6 @@ window.onload = () => {
     editor.addEventListener('blur', render);
     editor.addEventListener('mouseleave', render);
 
-    rendered.innerHTML = marked('# Markdown w/ Showdown\n\n- epic\n- lists');
+    rendered.innerHTML = converter.makeHtml('# Markdown w/ Showdown\n\n- epic\n- lists');
 }
 
