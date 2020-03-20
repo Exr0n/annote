@@ -1,78 +1,38 @@
 var content
 
-function getSelectionCharacterOffsetWithin(element) {
-    // https://stackoverflow.com/a/4812022
-    var start = 0;
-    var end = 0;
-    var doc = element.ownerDocument || element.document;
-    var win = doc.defaultView || doc.parentWindow;
-    var sel;
-    if (typeof win.getSelection != "undefined") {
-        sel = win.getSelection(); // get user selection
-        if (sel.rangeCount > 0) { // if the selection has ranges (this should always be true given prev condition)
-            var range = sel.getRangeAt(0); // get first range
-            var preCaretRange = range.cloneRange(); // duplicate it
-            preCaretRange.selectNodeContents(element); // select the contents of the entire node
-            preCaretRange.setEnd(range.startContainer, range.startOffset); // set the end to the original begin, thereby selecting the part between where the node starts and where the range starts
-            start = preCaretRange.toString().length; // the length of that selection is the offset of the beginning
-            preCaretRange.setEnd(range.endContainer, range.endOffset); // then, move the invisible range to the end of the original
-            end = preCaretRange.toString().length; // now, the length of the invisible range is the offset to the end of the original range
-        }
-    }
-    /// compatability
-    // else if ( (sel = doc.selection) && sel.type != "Control") {
-    //     var textRange = sel.createRange(); // create a range
-    //     var preCaretTextRange = doc.body.createTextRange(); //
-    //     preCaretTextRange.moveToElementText(element);
-    //     preCaretTextRange.setEndPoint("EndToStart", textRange);
-    //     start = preCaretTextRange.text.length;
-    //     preCaretTextRange.setEndPoint("EndToEnd", textRange);
-    //     end = preCaretTextRange.text.length;
-    // }
-    return { start: start, end: end };
-}
+function sanitize(html) {
+    html = html.replace("</p><p>", "\n");
+    html = html.replace("<li>", "- ")
+    console.log(html);
+    html = new DOMParser().parseFromString(html, 'text/html').body.textContent;
+    console.log(html);
 
-function reportSelection() {
-    var selOffsets = getSelectionCharacterOffsetWithin( content );
-    // var selOffsets = customReport(content);
-    document.getElementById("selectionLog").innerHTML = "Selection offsets: " + selOffsets.start + ", " + selOffsets.end;
-}
-
-function customReport(element) {
-    var start = 0;
-    var end = 0;
-    var doc = element.ownerDocument || element.document;
-    var win = doc.defaultView || doc.parentWindow;
-    var sel;
-    if (typeof win.getSelection != "undefined") { // selection made by user
-        sel = window.getSelection(); // get cursor selection
-        if (sel.rangeCount > 0) { // atleast one selection exists
-            var range = win.getSelection().getRangeAt(0);
-            return { start: range.startContainer.tagName, end: range.endContainer.tagName };
-        }
-    }
-    return { start: undefined, end: undefined }
+    return html;
 }
 
 window.onload = () => {
     content = document.getElementById('content');
 
-    content.innerHTML = marked('<p>##amazing</p>');
+    content.innerHTML = marked('# Markdown w/ Marked\n\n- epic\n- lists');
 
-    content.addEventListener('input', () => {
-        console.log('edit!')
-        console.log(content.innerHTML)
-        console.log(marked(content.innerHTML))
+    // content.addEventListener('input', () => {
+    //     console.log('edit!')
+    //     console.log(content.innerHTML)
+    //     console.log(marked(content.innerHTML))
+    // })
+
+    content.addEventListener('focus', () => {
+        content.innerHTML = '<code>' + sanitize(content.innerHTML) + '</code>';
     })
 
-    content.onclick = (e) => {
-        // TODO: needed?
-    }
+    content.addEventListener('blur', () => {
+        content.innerHTML = marked(content.innerHTML);
+    })
 
-    // https://stackoverflow.com/a/4812022
-    document.addEventListener("selectionchange", reportSelection, false);
-    document.addEventListener("mouseup", reportSelection, false);
-    document.addEventListener("mousedown", reportSelection, false);
-    document.addEventListener("keyup", reportSelection, false);
+    // // https://stackoverflow.com/a/4812022
+    // document.addEventListener("selectionchange", reportSelection, false);
+    // document.addEventListener("mouseup", reportSelection, false);
+    // document.addEventListener("mousedown", reportSelection, false);
+    // document.addEventListener("keyup", reportSelection, false);
 }
 
