@@ -3,10 +3,21 @@
     <head>
         <meta charset="utf-8"/>
         <title>Marked in the browser</title>
+<style>
+.notearea {
+    border: 1px solid black;
+    padding: 0px;
+    margin: 0px;
+}
+.notearea p {
+    padding: 0px;
+    margin: 0px;
+}
+</style>
     </head>
     <body>
         <!-- Marked test: https://github.com/markedjs/marked -->
-        <div id="content" contenteditable ></div>
+        <div class="notearea" id="content" contenteditable ></div>
         <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
         <script src="main.js"></script>
         <code id="selectionLog" ></code>

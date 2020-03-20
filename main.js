@@ -12,27 +12,29 @@ function getSelectionCharacterOffsetWithin(element) {
         if (sel.rangeCount > 0) { // if the selection has ranges (this should always be true given prev condition)
             var range = sel.getRangeAt(0); // get first range
             var preCaretRange = range.cloneRange(); // duplicate it
-            preCaretRange.selectNodeContents(element); //
-            preCaretRange.setEnd(range.startContainer, range.startOffset);
-            start = preCaretRange.toString().length;
-            preCaretRange.setEnd(range.endContainer, range.endOffset);
-            end = preCaretRange.toString().length;
+            preCaretRange.selectNodeContents(element); // select the contents of the entire node
+            preCaretRange.setEnd(range.startContainer, range.startOffset); // set the end to the original begin, thereby selecting the part between where the node starts and where the range starts
+            start = preCaretRange.toString().length; // the length of that selection is the offset of the beginning
+            preCaretRange.setEnd(range.endContainer, range.endOffset); // then, move the invisible range to the end of the original
+            end = preCaretRange.toString().length; // now, the length of the invisible range is the offset to the end of the original range
         }
-    } else if ( (sel = doc.selection) && sel.type != "Control") {
-        var textRange = sel.createRange();
-        var preCaretTextRange = doc.body.createTextRange();
-        preCaretTextRange.moveToElementText(element);
-        preCaretTextRange.setEndPoint("EndToStart", textRange);
-        start = preCaretTextRange.text.length;
-        preCaretTextRange.setEndPoint("EndToEnd", textRange);
-        end = preCaretTextRange.text.length;
     }
-    // return { start: start, end: end };
+    /// compatability
+    // else if ( (sel = doc.selection) && sel.type != "Control") {
+    //     var textRange = sel.createRange(); // create a range
+    //     var preCaretTextRange = doc.body.createTextRange(); //
+    //     preCaretTextRange.moveToElementText(element);
+    //     preCaretTextRange.setEndPoint("EndToStart", textRange);
+    //     start = preCaretTextRange.text.length;
+    //     preCaretTextRange.setEndPoint("EndToEnd", textRange);
+    //     end = preCaretTextRange.text.length;
+    // }
+    return { start: start, end: end };
 }
 
 function reportSelection() {
-    // var selOffsets = getSelectionCharacterOffsetWithin( content );
-    var selOffsets = customReport(content);
+    var selOffsets = getSelectionCharacterOffsetWithin( content );
+    // var selOffsets = customReport(content);
     document.getElementById("selectionLog").innerHTML = "Selection offsets: " + selOffsets.start + ", " + selOffsets.end;
 }
 
