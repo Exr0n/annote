@@ -1,13 +1,15 @@
 var content
 
-function sanitize(html) {
-    html = html.replace("</p><p>", "\n");
-    html = html.replace("<li>", "- ")
-    console.log(html);
-    html = new DOMParser().parseFromString(html, 'text/html').body.textContent;
-    console.log(html);
+const converter = new showdown.Converter();
 
-    return html;
+function sanitize(html) {
+    let markdown = converter.makeMarkdown(html).slice(0, -10);
+    console.log(markdown);
+
+    // markdown = new DOMParser().parseFromString(markdown, 'text/html').body.textContent;
+    // console.log(markdown);
+
+    return markdown;
 }
 
 window.onload = () => {
@@ -15,24 +17,16 @@ window.onload = () => {
 
     content.innerHTML = marked('# Markdown w/ Marked\n\n- epic\n- lists');
 
-    // content.addEventListener('input', () => {
-    //     console.log('edit!')
-    //     console.log(content.innerHTML)
-    //     console.log(marked(content.innerHTML))
-    // })
-
     content.addEventListener('focus', () => {
-        content.innerHTML = '<code>' + sanitize(content.innerHTML) + '</code>';
+        content.innerHTML = sanitize(content.innerHTML);
     })
 
     content.addEventListener('blur', () => {
-        content.innerHTML = marked(content.innerHTML);
-    })
+        console.log("converting MD > HTML")
+        console.log(content.innerHTML)
 
-    // // https://stackoverflow.com/a/4812022
-    // document.addEventListener("selectionchange", reportSelection, false);
-    // document.addEventListener("mouseup", reportSelection, false);
-    // document.addEventListener("mousedown", reportSelection, false);
-    // document.addEventListener("keyup", reportSelection, false);
+        content.innerHTML = converter.makeHtml(content.innerHTML);
+        // content.innerHTML = marked(content.innerHTML);
+    })
 }
 
