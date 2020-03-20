@@ -1,10 +1,11 @@
-var rendered, ediitor;
+var rendered;
+var cmEditor; // codemirror editor
 
 const converter = new showdown.Converter();
 converter.setFlavor('github');
 
 CodeMirror.commands.save = function () {
-    alert("Saving");
+    console.log(cmEditor.getValue())
     render();
 };
 
@@ -12,39 +13,37 @@ CodeMirror.commands.save = function () {
 const cmOpts = {
     lineNumbers: true,
     mode: "markdown",
+    theme: "ayu-dark",
     keyMap: "vim",
     showCursorWhenSelecting: true
 }
 
 const edit = () => {
+    console.log("showing codemirror")
     const sanitize = (html) => {
         let markdown = converter.makeMarkdown(html);
         markdown = markdown.replace('<!-- -->', ''); // remove empty html comment
         markdown = markdown.replace('\n\n\n', '\n\n'); // remove duplicated newlines
         return markdown;
     }
-    editor.clientWidth = rendered.clientWidth;
-    editor.style.height = '' + rendered.clientHeight + 'px';
     rendered.style.display = "none";
-    editor.style.display = "inherit";
+    cmEditor.getWrapperElement().style.display = "inherit";
 
-    editor.value = sanitize(rendered.innerHTML);
-    var myCodeMirror = CodeMirror.fromTextArea(editor, cmOpts);
+    cmEditor.setValue(sanitize(rendered.innerHTML));
 }
 const render = () => {
-    editor.style.display = "none";
+    console.log("hiding codemirror")
+    cmEditor.getWrapperElement().style.display = "none";
     rendered.style.display = "inherit";
-    rendered.innerHTML = converter.makeHtml(editor.value);
+    rendered.innerHTML = converter.makeHtml(cmEditor.getValue());
 }
 
 window.onload = () => {
     rendered = document.getElementById('rendered');
-    editor = document.getElementById('editor');
+    cmEditor = CodeMirror(document.body, cmOpts);
+    cmEditor.getWrapperElement().style.display = "none";
 
     rendered.addEventListener('click', edit);
-
-    editor.addEventListener('blur', render);
-    editor.addEventListener('mouseleave', render);
 
     rendered.innerHTML = converter.makeHtml('# Markdown w/ Showdown\n\n- epic\n- lists');
 }
