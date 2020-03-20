@@ -1,4 +1,4 @@
-var rendered;
+var rendered, cmPlaceholder;
 var cmEditor; // codemirror editor
 
 const converter = new showdown.Converter();
@@ -11,10 +11,12 @@ CodeMirror.commands.save = function () {
 
 // code mirror opts
 const cmOpts = {
-    lineNumbers: true,
+    // lineNumbers: true,
     mode: "markdown",
-    theme: "ayu-dark",
-    keyMap: "vim",
+    // theme: "ayu-dark",
+    theme: "material-ocean",
+    // keyMap: "vim",
+    indentUnit: 4,
     showCursorWhenSelecting: true
 }
 
@@ -26,11 +28,13 @@ const edit = () => {
         markdown = markdown.replace('\n\n\n', '\n\n'); // remove duplicated newlines
         return markdown;
     }
+    cmEditor.setValue(sanitize(rendered.innerHTML));
+
     rendered.style.display = "none";
     cmEditor.getWrapperElement().style.display = "inherit";
-
-    cmEditor.setValue(sanitize(rendered.innerHTML));
+    cmEditor.refresh();
 }
+
 const render = () => {
     console.log("hiding codemirror")
     cmEditor.getWrapperElement().style.display = "none";
@@ -40,7 +44,11 @@ const render = () => {
 
 window.onload = () => {
     rendered = document.getElementById('rendered');
-    cmEditor = CodeMirror(document.body, cmOpts);
+    cmPlaceholder = document.getElementById('cmplaceholder');
+    console.log(cmPlaceholder, cmOpts);
+    cmEditor = CodeMirror((cm) => {
+        cmPlaceholder.parentNode.replaceChild(cm, cmPlaceholder)
+    }, cmOpts);
     cmEditor.getWrapperElement().style.display = "none";
 
     rendered.addEventListener('click', edit);
