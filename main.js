@@ -4,24 +4,17 @@ var cmEditor; // codemirror editor
 const converter = new showdown.Converter();
 converter.setFlavor('github');
 
-CodeMirror.commands.save = function () {
-    console.log(cmEditor.getValue())
-    render();
-};
-
 // code mirror opts
 const cmOpts = {
-    // lineNumbers: true,
+    lineNumbers: true,
     mode: "markdown",
-    // theme: "ayu-dark",
-    theme: "material-ocean",
-    // keyMap: "vim",
+    theme: "ayu-dark",
+    keyMap: "vim",
     indentUnit: 4,
     showCursorWhenSelecting: true
 }
 
 const edit = () => {
-    console.log("showing codemirror")
     const sanitize = (html) => {
         let markdown = converter.makeMarkdown(html);
         markdown = markdown.replace('<!-- -->', ''); // remove empty html comment
@@ -36,23 +29,31 @@ const edit = () => {
 }
 
 const render = () => {
-    console.log("hiding codemirror")
     cmEditor.getWrapperElement().style.display = "none";
     rendered.style.display = "inherit";
     rendered.innerHTML = converter.makeHtml(cmEditor.getValue());
 }
 
-window.onload = () => {
-    rendered = document.getElementById('rendered');
-    cmPlaceholder = document.getElementById('cmplaceholder');
-    console.log(cmPlaceholder, cmOpts);
-    cmEditor = CodeMirror((cm) => {
-        cmPlaceholder.parentNode.replaceChild(cm, cmPlaceholder)
-    }, cmOpts);
-    cmEditor.getWrapperElement().style.display = "none";
+CodeMirror.commands.save = function () {
+    console.log(cmEditor.getValue())
+    render();
+};
 
+window.onload = () => {
+    // init codemirror
+    cmPlaceholder = document.getElementById('cmplaceholder'); // get codemirror location
+    cmEditor = CodeMirror((cm) => {
+        cmPlaceholder.parentNode.replaceChild(cm, cmPlaceholder); // construct codemirror
+    }, cmOpts);
+    cmEditor.getWrapperElement().style.display = "none"; // hide codemirror
+
+    // init rendered notes
+    rendered = document.getElementById('rendered');
     rendered.addEventListener('click', edit);
 
-    rendered.innerHTML = converter.makeHtml('# Markdown w/ Showdown\n\n- epic\n- lists');
+    // event listeners
+    cmEditor.on('blur', render);
+
+    rendered.innerHTML = converter.makeHtml('# Markdown w/ Showdown\n\n- epic\n- lists\n```python\ndef foo():\n    print("foo")\n```');
 }
 

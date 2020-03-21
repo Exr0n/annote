@@ -3,28 +3,33 @@
     <head>
         <meta charset="utf-8"/>
         <title>annote</title>
-<!-- <style> -->
-<!-- .note-display { -->
-<!--     border: 1px solid black; -->
-<!--     padding: 0px; -->
-<!--     margin: 0px; -->
-<!-- } -->
-<!-- .note-display p { -->
-<!--     padding: 0px; -->
-<!--     margin: 0px; -->
-<!-- } -->
-<!-- </style> -->
-    <!-- codemirror imports: https://stackoverflow.com/a/15184747 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/codemirror.min.js" integrity="sha256-id5Qk/MwQJxgNlDFDpVymUuReXfTUZiaQKb8arrddQM=" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/addon/search/searchcursor.min.js" integrity="sha256-LE6iKRf3wBxVYAW8kInWVcU3A9hYtDaphl4Wgdg4ZkU=" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/addon/dialog/dialog.min.js" integrity="sha256-G+QhvxjUNi5P5cyQqjROwriSUy2lZtCFUQh+8W1o6I0=" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/keymap/vim.min.js" integrity="sha256-HO17+WfWPfzGbU+OcIRvK69+/FLK2w5wLV+Xw2dhvOw=" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/mode/markdown/markdown.min.js" integrity="sha256-tD4fOOV1dP+fQrZwpE/IbAw1/0BXPYusHBQYCEfpgqg=" crossorigin="anonymous"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/theme/ayu-dark.min.css" integrity="sha256-9x3KDtDYj0apPnHZT9OoJpnoTPfADDHWsvLhMuZ39e4=" crossorigin="anonymous" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.52.2/theme/material-ocean.min.css" integrity="sha256-wlrlQ/nxq7VI42sHkQRBlCD5KTAVy3IqDowwT9kIQ6c=" crossorigin="anonymous" />
+        <style>
+            .note-display {
+                border: 1px solid black;
+                padding: 0px;
+                margin: 0px;
+            }
+            .note-display p {
+                padding: 0px;
+                margin: 0px;
+            }
+        </style>
+        <!-- codemirror deps -->
+        <link rel=stylesheet href="codemirror/lib/codemirror.css">
+        <script src="codemirror/lib/codemirror.js"></script>
+        <script src="codemirror/mode/markdown/markdown.js"></script>
+        <script src="codemirror/addon/dialog/dialog.js"></script>
+        <script src="codemirror/addon/search/searchcursor.js"></script>
+        <script src="codemirror/keymap/vim.js"></script>
+        <link rel=stylesheet href="codemirror/theme/material-ocean.css">
+        <link rel=stylesheet href="codemirror/theme/ayu-dark.css">
+        <!-- highlight.js deps -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/styles/default.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/highlight.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/go.min.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
     </head>
     <body>
-        <!-- Marked test: https://github.com/markedjs/marked -->
         <div class="note-display" id="rendered" ></div>
         <div id="cmplaceholder" style="border: 8px solid red;" ></div>
         <script src=" https://cdn.jsdelivr.net/npm/showdown@1.9.0/dist/showdown.min.js"></script>
