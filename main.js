@@ -1,5 +1,7 @@
 "use strict";
 
+var main;
+
 var converter = new showdown.Converter();
 converter.setFlavor('github');
 
@@ -40,7 +42,7 @@ const initialize = () => {
     // TODO: anchor links (https://github.com/showdownjs/showdown/issues/344)
 }
 
-function Notebox(root, x, y, w, h) {
+function Notebox(root, x, y, w, h, inner) {
     var self = {
         id: Notebox.assignId(),
         x: x,
@@ -48,67 +50,102 @@ function Notebox(root, x, y, w, h) {
         w: w,
         h: h,
         mode: 0, // 0 = disp, 1 = edit
+        children: new Map(),
         wrapper: document.createElement("div"),
         display: document.createElement("div"),
         cmEditor: undefined
     }
+    if (typeof self.w === 'undefined') self.w = "95%"; else if (typeof self.w === 'number') self.w += 'px';
+    if (typeof self.h === 'undefined') self.h = "95%"; else if (typeof self.h === 'number') self.h += 'px';
     self.wrapper.setAttribute('class', 'float-wrap');
-    self.wrapper.style = `left: ${self.x}px; top: ${self.y}px; width: ${self.w}px; height: ${self.h}px;`;
+    self.wrapper.style = `left: ${self.x}px; top: ${self.y}px; width: ${self.w}; height: ${self.h};`;
     self.display.setAttribute('class', 'float-disp');
-    self.display.innerHTML = `<a name=notebox-${self.id}></a>\n`;
+    self.display.innerHTML = inner || `<a name=notebox-${self.id}></a>\n`;
     self.cmEditor = CodeMirror((cm) => {
         self.wrapper.appendChild(cm); // construct codemirror
     }, cmOpts);
     self.cmEditor.getWrapperElement().style.display = "none";
     self.wrapper.appendChild(self.display);
-    root.appendChild(self.wrapper);
 
-    self.wrapper.addEventListener('click', () => {
+    // static facing
+    ((self) => {
+        self.syncStaticAttrs = () => {
+            Notebox.recent = self;
+        }
+    })(self);
+    // external
+    ((self) => {
+        self.appendChild = (child) => {
+            self.children.set(child.id, child);
+            self.wrapper.appendChild(child.wrapper);
+            console.log(self.children);
+        }
+    })(self);
+    // UX
+    ((self) => {
+        self.setMode = (mode) => {
+            self.syncStaticAttrs();
+            self.mode = mode || 1-self.mode;
+            switch (self.mode) {
+                case 0:
+                    self.cmEditor.getWrapperElement().style.display = "none";
+                    self.display.style.display = "inherit";
+                    break;
+                case 1:
+                    self.cmEditor.setSize(self.w, self.h);
+                    self.display.style.display = "none";
+                    self.cmEditor.getWrapperElement().style.display = "inherit";
+                    self.cmEditor.refresh();
+            }
+        }
+        self.edit = () => {
+            if (self.mode === 1) return;
+            const sanitize = (html) => {
+                let markdown = converter.makeMarkdown(html);
+                markdown = markdown.replace('<!-- -->', ''); // remove empty html comment
+                markdown = markdown.replace('\n\n\n', '\n\n'); // remove duplicated newlines
+                return markdown;
+            }
+            console.log("\nHTML", self.display.innerHTML);
+            self.cmEditor.setValue(sanitize(self.display.innerHTML));
+            console.log("MD", self.cmEditor.getValue());
+
+            self.setMode(1);
+        }
+        self.render = () => {
+            if (self.mode === 0) return;
+            console.log("\nMD", self.cmEditor.getValue());
+            self.display.innerHTML = converter.makeHtml(self.cmEditor.getValue());
+            console.log("HTML", self.display.innerHTML);
+
+            self.setMode(0);
+        }
+    })(self);
+    // back end
+    ((self) => {
+        self.export = () => {
+            console.log(self.id, self.children);
+            return {
+                id: self.id,
+                x: self.x,
+                y: self.y,
+                w: self.w,
+                h: self.h,
+                inner: self.display.innerHTML,
+                children: Array.from(self.children, ([key, value]) => value.export())
+            };
+        }
+    })(self);
+
+    self.wrapper.addEventListener('click', (e) => {
+        e.stopPropagation(); // https://stackoverflow.com/a/10554459
         self.edit();
     });
     self.wrapper.addEventListener('mouseleave', () => {
         self.render();
     });
-    self.syncStaticAttrs = () => {
-        Notebox.recent = self;
-    }
-    self.setMode = (mode) => {
-        self.syncStaticAttrs();
-        self.mode = mode || 1-self.mode;
-        switch (self.mode) {
-            case 0:
-                self.cmEditor.getWrapperElement().style.display = "none";
-                self.display.style.display = "inherit";
-                break;
-            case 1:
-                self.cmEditor.setSize(self.w, self.h);
-                self.display.style.display = "none";
-                self.cmEditor.getWrapperElement().style.display = "inherit";
-                self.cmEditor.refresh();
-        }
-    }
-    self.edit = () => {
-        if (self.mode === 1) return;
-        const sanitize = (html) => {
-            let markdown = converter.makeMarkdown(html);
-            markdown = markdown.replace('<!-- -->', ''); // remove empty html comment
-            markdown = markdown.replace('\n\n\n', '\n\n'); // remove duplicated newlines
-            return markdown;
-        }
-        console.log("\nHTML", self.display.innerHTML);
-        self.cmEditor.setValue(sanitize(self.display.innerHTML));
-        console.log("MD", self.cmEditor.getValue());
 
-        self.setMode(1);
-    }
-    self.render = () => {
-        if (self.mode === 0) return;
-        console.log("\nMD", self.cmEditor.getValue());
-        self.display.innerHTML = converter.makeHtml(self.cmEditor.getValue());
-        console.log("HTML", self.display.innerHTML);
-
-        self.setMode(0);
-    }
+    root.appendChild(self);
     return self;
 }
 Notebox.assignId = () => {
@@ -139,51 +176,41 @@ Notebox.assignId._gen = (function *() {
     }
 })();
 
-// const edit = () => {
-//     const sanitize = (html) => {
-//         let markdown = converter.makeMarkdown(html);
-//         markdown = markdown.replace('<!-- -->', ''); // remove empty html comment
-//         markdown = markdown.replace('\n\n\n', '\n\n'); // remove duplicated newlines
-//         return markdown;
-//     }
-//     cmEditor.setValue(sanitize(rendered.innerHTML));
-//     cmEditor.setSize(rendered.clientWidth, rendered.clientHeight);
-
-//     rendered.style.display = "none";
-//     cmEditor.getWrapperElement().style.display = "inherit";
-//     cmEditor.refresh();
-// }
-
-// const render = () => {
-//     cmEditor.getWrapperElement().style.display = "none";
-//     rendered.style.display = "inherit";
-//     rendered.innerHTML = converter.makeHtml(cmEditor.getValue());
-// }
+function Document(rootElement) {
+    var self = {
+        root: rootElement
+    };
+    self.appendChild = (notebox) => {
+        rootElement.appendChild(notebox.wrapper);
+    }
+    return self;
+}
 
 CodeMirror.commands.save = function () {
-    // console.log(cmEditor.getValue())
-    // render();
     Notebox.recent.render();
 };
 
 window.onload = () => {
-    var root = document.getElementById('float-root');
-    let main = Notebox(root, 200, 1400, 600, 400);
+    var root = Document(document.getElementById('float-absolute-root'));
+    main = Notebox(root, 0, 0);
+    let sub = Notebox(main, 100, 100, 600, 400);
+}
 
-    // // init codemirror
-    // cmPlaceholder = document.getElementById('cmplaceholder'); // get codemirror location
-    // cmEditor = CodeMirror((cm) => {
-    //     cmPlaceholder.parentNode.replaceChild(cm, cmPlaceholder); // construct codemirror
-    // }, cmOpts);
-    // cmEditor.getWrapperElement().style.display = "none"; // hide codemirror
+window.onbeforeunload = () => {
+    console.log("unload")
+    const saveContents = (filename, contents, replacer) => {
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:application/javascript;charset=utf-8,' + JSON.stringify(contents, replacer, 4));
+        element.setAttribute('download', filename);
 
-    // // init rendered notes
-    // rendered = document.getElementById('rendered');
-    // rendered.addEventListener('click', edit);
+        element.style.display = 'none';
+        document.body.appendChild(element);
 
-    // // event listeners
-    // cmEditor.on('blur', render);
+        element.click();
 
-    // rendered.innerHTML = converter.makeHtml('# Annote Alpha\n\n- epic\n- lists\n```python\ndef foo():\n    print("foo")\n```');
+        document.body.removeChild(element);
+    }
+
+    saveContents("untiled", main.export());
 }
 

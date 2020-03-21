@@ -8,12 +8,13 @@ body {
     background-color: black;
     font-color: gray;
 }
-#float-root {
+#float-absolute-root {
     position: static;
 }
 .float-wrap {
     position: absolute;
     border: 2px solid green;
+    background-color: rgba(0, 0, 0, 0.8);
 }
 .float-disp {
     padding: 0px;
@@ -37,7 +38,7 @@ body {
         <script>hljs.initHighlightingOnLoad();</script>
     </head>
     <body>
-        <div id="float-root" ></div>
+        <div id="float-absolute-root" ></div>
         <script src=" https://cdn.jsdelivr.net/npm/showdown@1.9.0/dist/showdown.min.js"></script>
         <script src="main.js"></script>
     </body>
