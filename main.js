@@ -1,8 +1,7 @@
 var rendered, cmPlaceholder;
 var cmEditor; // codemirror editor
 
-const converter = new showdown.Converter();
-converter.setFlavor('github');
+var converter;
 
 // code mirror opts
 const cmOpts = {
@@ -13,6 +12,7 @@ const cmOpts = {
     indentUnit: 4,
     showCursorWhenSelecting: true
 }
+
 
 const edit = () => {
     const sanitize = (html) => {
@@ -40,6 +40,40 @@ CodeMirror.commands.save = function () {
 };
 
 window.onload = () => {
+    (() => {
+        // custom showdown "at anchor" extension
+        (function (extension) {
+            if (typeof showdown !== 'undefined') {
+                // global (browser or nodejs global)
+                extension(showdown);
+            } else if (typeof define === 'function' && define.amd) {
+                // AMD
+                define(['showdown'], extension);
+            } else if (typeof exports === 'object') {
+                // Node, CommonJS-like
+                module.exports = extension(require('showdown'));
+            } else {
+                // showdown was not found so we throw
+                throw Error('Could not find showdown library');
+            }
+        }(function (showdown) {
+            // loading extension into shodown
+            showdown.extension('atanchor', function () {
+                var atanchor = {
+                    type: 'lang',
+                    filter: function (text, converter, options) {
+                        console.log("ext called on", text);
+                        text.replace(/^@@.+$/g, '<a name=\"$1\"></a>');
+                        return text;
+                    }
+                };
+                return [atanchor];
+            });
+        }));
+        // create converter
+        converter = new showdown.Converter();
+        converter.setFlavor('github');
+    })();
     // init codemirror
     cmPlaceholder = document.getElementById('cmplaceholder'); // get codemirror location
     cmEditor = CodeMirror((cm) => {
@@ -54,6 +88,6 @@ window.onload = () => {
     // event listeners
     cmEditor.on('blur', render);
 
-    rendered.innerHTML = converter.makeHtml('# Markdown w/ Showdown\n\n- epic\n- lists\n```python\ndef foo():\n    print("foo")\n```');
+    rendered.innerHTML = converter.makeHtml('# Annote Alpha\n\n- epic\n- lists\n```python\ndef foo():\n    print("foo")\n```');
 }
 
