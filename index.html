@@ -4,15 +4,22 @@
         <meta charset="utf-8"/>
         <title>annote</title>
         <style>
-            .note-display {
-                border: 1px solid black;
-                padding: 0px;
-                margin: 0px;
-            }
-            .note-display p {
-                padding: 0px;
-                margin: 0px;
-            }
+body {
+    background-color: black;
+    font-color: gray;
+}
+#float-root {
+    position: static;
+}
+.float-wrap {
+    position: absolute;
+    border: 2px solid green;
+}
+.float-disp {
+    padding: 0px;
+    margin: 0px;
+    color: gray;
+}
         </style>
         <!-- codemirror deps -->
         <link rel=stylesheet href="codemirror/lib/codemirror.css">
@@ -30,10 +37,8 @@
         <script>hljs.initHighlightingOnLoad();</script>
     </head>
     <body>
-        <div class="note-display" id="rendered" ></div>
-        <div id="cmplaceholder" style="border: 8px solid red;" ></div>
+        <div id="float-root" ></div>
         <script src=" https://cdn.jsdelivr.net/npm/showdown@1.9.0/dist/showdown.min.js"></script>
         <script src="main.js"></script>
-        <code id="selectionLog" ></code>
     </body>
 </html>
