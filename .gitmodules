@@ -1,3 +1,6 @@
 [submodule "codemirror"]
 	path = codemirror
 	url = https://github.com/codemirror/CodeMirror.git
+[submodule "showdown-katex"]
+	path = showdown-katex
+	url = https://github.com/obedm503/showdown-katex.git

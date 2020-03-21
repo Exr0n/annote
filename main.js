@@ -2,8 +2,29 @@
 
 var main;
 
-var converter = new showdown.Converter();
-converter.setFlavor('github');
+var converter = new showdown.Converter({
+    ghCompatibleHeaderId: true,
+    parseImgDimensions: true,
+    simplifiedAutoLink: true,
+    strikethrough: true,
+    tables: true,
+    ghCodeBlocks: true,
+    tasklists: true,
+    ghMentions: false,
+    smartIndentationFix: true,
+    disableForced4SpacesIndentedSublists: true,
+    extensions: [
+        showdownKatex({
+            // maybe you want katex to throwOnError
+            throwOnError: true,
+            // disable displayMode
+            displayMode: false,
+            // change errorColor to blue
+            errorColor: '#1500ff',
+        }),
+    ],
+});
+// converter.setFlavor('github');
 
 // code mirror opts
 const cmOpts = {
