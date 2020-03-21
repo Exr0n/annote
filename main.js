@@ -2,28 +2,6 @@
 
 var main;
 
-var converter = new showdown.Converter({
-    ghCompatibleHeaderId: true,
-    parseImgDimensions: true,
-    simplifiedAutoLink: true,
-    strikethrough: true,
-    tables: true,
-    ghCodeBlocks: true,
-    tasklists: true,
-    ghMentions: false,
-    smartIndentationFix: true,
-    disableForced4SpacesIndentedSublists: true,
-    extensions: [
-        showdownKatex({
-            // maybe you want katex to throwOnError
-            throwOnError: true,
-            // disable displayMode
-            displayMode: false,
-            // change errorColor to blue
-            errorColor: '#1500ff',
-        }),
-    ],
-});
 // converter.setFlavor('github');
 
 // code mirror opts
@@ -63,25 +41,68 @@ const initialize = () => {
     // TODO: anchor links (https://github.com/showdownjs/showdown/issues/344)
 }
 
-function Notebox(root, x, y, w, h, inner) {
+function AnDoc(rootElement) {
+    var self = {
+        root: rootElement,
+    };
+    self.converter = new showdown.Converter({
+        ghCompatibleHeaderId: true,
+        parseImgDimensions: true,
+        simplifiedAutoLink: true,
+        strikethrough: true,
+        tables: true,
+        ghCodeBlocks: true,
+        tasklists: true,
+        ghMentions: false,
+        smartIndentationFix: true,
+        disableForced4SpacesIndentedSublists: true,
+        extensions: [
+            showdownKatex({
+                // maybe you want katex to throwOnError
+                throwOnError: true,
+                // disable displayMode
+                displayMode: false,
+                // change errorColor to blue
+                errorColor: '#1500ff',
+            }),
+        ],
+    });
+
+    self.main = Notebox(self, 0, 0);
+
+    self.appendChild = (notebox) => {
+        console.log("got a root child!")
+        rootElement.appendChild(notebox.wrapper);
+    }
+    return self;
+}
+
+function Notebox(root, x, y, w, h, contents) {
     var self = {
         id: Notebox.assignId(),
         x: x,
         y: y,
         w: w,
         h: h,
-        mode: 0, // 0 = disp, 1 = edit
+        contents: contents,
         children: new Map(),
+        andoc: root.andoc,
         wrapper: document.createElement("div"),
         display: document.createElement("div"),
-        cmEditor: undefined
+        cmEditor: undefined,
+        mode: 0 // 0 = disp, 1 = edit
     }
+    self.contents = self.contents  || `<a name=notebox-${self.id}></a>\n`;
+    if (root instanceof AnDoc) self.andoc = root;
+    console.log(root, root instanceof AnDoc);
+    console.log("self.andoc", self.andoc);
     if (typeof self.w === 'undefined') self.w = "95%"; else if (typeof self.w === 'number') self.w += 'px';
     if (typeof self.h === 'undefined') self.h = "95%"; else if (typeof self.h === 'number') self.h += 'px';
+
     self.wrapper.setAttribute('class', 'float-wrap');
     self.wrapper.style = `left: ${self.x}px; top: ${self.y}px; width: ${self.w}; height: ${self.h};`;
     self.display.setAttribute('class', 'float-disp');
-    self.display.innerHTML = inner || `<a name=notebox-${self.id}></a>\n`;
+    self.display.innerHTML = self.andoc.converter.makeHtml(self.contents);
     self.cmEditor = CodeMirror((cm) => {
         self.wrapper.appendChild(cm); // construct codemirror
     }, cmOpts);
@@ -128,7 +149,7 @@ function Notebox(root, x, y, w, h, inner) {
                 return markdown;
             }
             console.log("\nHTML", self.display.innerHTML);
-            self.cmEditor.setValue(sanitize(self.display.innerHTML));
+            self.cmEditor.setValue(self.contents);
             console.log("MD", self.cmEditor.getValue());
 
             self.setMode(1);
@@ -136,7 +157,8 @@ function Notebox(root, x, y, w, h, inner) {
         self.render = () => {
             if (self.mode === 0) return;
             console.log("\nMD", self.cmEditor.getValue());
-            self.display.innerHTML = converter.makeHtml(self.cmEditor.getValue());
+            self.contents = self.cmEditor.getValue();
+            self.display.innerHTML = converter.makeHtml(self.contents);
             console.log("HTML", self.display.innerHTML);
 
             self.setMode(0);
@@ -149,12 +171,7 @@ function Notebox(root, x, y, w, h, inner) {
             return {
                 id: self.id,
                 x: self.x,
-                y: self.y,
-                w: self.w,
-                h: self.h,
-                inner: self.display.innerHTML,
-                children: Array.from(self.children, ([key, value]) => value.export())
-            };
+                y: self.y, w: self.w, h: self.h, inner: self.display.innerHTML, children: Array.from(self.children, ([key, value]) => value.export()) };
         }
     })(self);
 
@@ -172,7 +189,7 @@ function Notebox(root, x, y, w, h, inner) {
 Notebox.assignId = () => {
     return Notebox.assignId._gen.next().value;
 }
-Notebox.assignId._gen = (function *() {
+Notebox.assignId._gen = (function *() { // TODO: this should be a property of the document
     var letters = 'abcdefghijklmnopqrstuvwxyz';
     const increment = (str, idx) => {
         // console.log("increment", str, id.length+idx);
@@ -197,29 +214,20 @@ Notebox.assignId._gen = (function *() {
     }
 })();
 
-function Document(rootElement) {
-    var self = {
-        root: rootElement
-    };
-    self.appendChild = (notebox) => {
-        rootElement.appendChild(notebox.wrapper);
-    }
-    return self;
-}
 
 CodeMirror.commands.save = function () {
-    Notebox.recent.render();
+    Notebox.recent.render(); // TODO: use document
 };
 
 window.onload = () => {
-    var root = Document(document.getElementById('float-absolute-root'));
-    main = Notebox(root, 0, 0);
-    let sub = Notebox(main, 100, 100, 600, 400);
+    var root = AnDoc(document.getElementById('float-absolute-root'));
+    let sub = Notebox(root.main, 100, 100, 600, 400);
 }
 
 window.onbeforeunload = () => {
     console.log("unload")
     const saveContents = (filename, contents, replacer) => {
+        return;
         var element = document.createElement('a');
         element.setAttribute('href', 'data:application/javascript;charset=utf-8,' + JSON.stringify(contents, replacer, 4));
         element.setAttribute('download', filename);
