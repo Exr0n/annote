@@ -54,6 +54,9 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
                 this.emit('change', {keys: this.buffer[this.buffer.length-1]});
             }
         } else {
+            if (this.buffer[this.buffer.length-1].length === 0) {
+                this.emit('special', key);
+            }
             this.abort();
         }
     }
@@ -70,7 +73,6 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         return false;
     }
     abort() {
-        console.log("Abort!")
         clearTimeout(this.timeout);
         this.down = [];
         this.buffer.push('');
@@ -149,7 +151,6 @@ class AnDoc {
             }
         })();
 
-        this.keyHandler = new KeyHandler(document, AnDoc.keybinds(this), this.keyboardActivityChecker.bind(this), config.keyTimeout);
         this.dom = {
             messages: document.createElement('div'),
             keyChord: document.createElement('code')
@@ -157,7 +158,10 @@ class AnDoc {
         this.dom.messages.setAttribute('class', 'messages');
         this.dom.messages.appendChild(this.dom.keyChord);
         this.root.appendChild(this.dom.messages);
+
+        this.keyHandler = new KeyHandler(document, AnDoc.keybinds(this), this.keyboardActivityChecker.bind(this), config.keyTimeout);
         this.keyHandler.on('change', (evt) => { this.dom.keyChord.innerHTML = evt.keys; });
+        this.keyHandler.on('special', this.specialKey.bind(this));
 
         /// TODO: Unused -- hard to tell which box was right clicked on
         // document.addEventListener('contextmenu', (evt) => {
@@ -173,6 +177,16 @@ class AnDoc {
     keyboardActivityChecker() {
         return typeof this.editing === 'undefined';
     }
+    async specialKey(key) {
+        switch (key) {
+            case "Enter":
+                if (typeof this.focused !== 'undefined') {
+                    this.edit(this.focused);
+                }
+                break;
+        }
+
+    }
     assignId() {
         return this.idGenerator.next().value;
     }
@@ -184,6 +198,19 @@ class AnDoc {
         if (typeof this.focused !== 'undefined') this.focused.blur();
         this.focused = note;
         note.focus();
+    }
+    async edit(note) {
+        if (typeof this.editing !== 'undefined') this.editing.render();
+        this.editing = note;
+        this.focus(note);
+        note.edit();
+    }
+    async unedit() {
+        if (typeof this.editing === 'undefined') return;
+        this.editing.render();
+        this.focus(this.editing);
+        this.editing = undefined;
+        document.body.focus();
     }
     async createNote(root, x, y, w, h, content) {
         root = root || this.root;
@@ -199,18 +226,7 @@ class AnDoc {
 }
 AnDoc.keybinds = (doc) => {
     var ret = new Map()
-    ret.set('^cool', (cmd) => {
-        console.log('cool:', cmd);
-        return true;
-    });
-    ret.set('2l', (cmd) => {
-        if (cmd.length < 2) return false; // request a command of atleast len 2
-        console.log("epic! got a command:", cmd);
-        return true;
-    });
-
     ret.set('^f', (cmd) => {
-        console.log("f command called", cmd);
         if (doc.notes.has(cmd)) {
             doc.focus(doc.notes.get(cmd));
             return true;
@@ -263,6 +279,7 @@ class Notebox {
                 this.dom.wrapper.appendChild(cm); // construct codemirror
             }, cmOpts);
             this.cmEditor.getWrapperElement().style.display = "none";
+            this.cmEditor.getWrapperElement().style.zIndex = 1000;
 
             this.dom.wrapper.addEventListener('click', (e) => {
                 e.stopPropagation(); // https://stackoverflow.com/a/10554459
@@ -284,43 +301,41 @@ class Notebox {
         this.children.set(child.id, child);
         this.dom.wrapper.appendChild(child.dom.wrapper);
     }
-    async focus() {
-        this.dom.wrapper.classList.add('doc-focused');
-    }
-    async blur() {
-        this.dom.wrapper.classList.remove('doc-focused'); // unfocus in dom
-    }
     // UX
-    setMode(mode) {
+    async setMode(mode) {
         this.syncStaticAttrs();
         this.mode = mode || 1-this.mode;
         switch (this.mode) {
             case 0:
                 this.cmEditor.getWrapperElement().style.display = "none";
                 this.dom.display.style.display = "inherit";
-                if (this.andoc.editing === this.id) this.andoc.editing = undefined;
                 break;
             case 1:
-                this.cmEditor.setSize(this.w, this.h);
+                this.cmEditor.setSize(this.w, this.h || 'auto');
                 this.dom.display.style.display = "none";
                 this.cmEditor.getWrapperElement().style.display = "inherit";
                 this.cmEditor.refresh();
                 this.cmEditor.focus();
-                this.andoc.editing = this.id;
         }
     }
-    edit() {
+    async edit() {
         if (this.mode === 1) return;
         this.cmEditor.setValue(this.contents);
 
         this.setMode(1);
     }
-    render() {
+    async render() {
         if (this.mode === 0) return;
         this.contents = this.cmEditor.getValue();
         this.dom.display.innerHTML = this.andoc.mdConverter.makeHtml(this.contents);
 
         this.setMode(0);
+    }
+    async focus() {
+        this.dom.wrapper.classList.add('doc-focused');
+    }
+    async blur() {
+        this.dom.wrapper.classList.remove('doc-focused'); // unfocus in dom
     }
     // back end
     export() {
@@ -338,7 +353,7 @@ class Notebox {
 }
 
 CodeMirror.commands.save = function () {
-    Notebox.recent.render(); // TODO: use document
+    global_andoc.unedit();
 };
 
 window.onload = () => {
