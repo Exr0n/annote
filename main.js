@@ -1,5 +1,8 @@
 "use strict";
 
+const config = {
+    keyTimeout: 1000
+};
 // code mirror opts
 const cmOpts = {
     lineNumbers: true,
@@ -10,39 +13,71 @@ const cmOpts = {
     showCursorWhenSelecting: true
 }
 
-const initialize = () => {
-    // showdown extension: https://github.com/showdownjs/showdown/wiki/extensions
-    // TODO: doesn't work
-    (function (extension) {
-        if (typeof showdown !== 'undefined') {
-            // global (browser or nodejs global)
-            extension(showdown);
-        } else if (typeof define === 'function' && define.amd) {
-            // AMD
-            define(['showdown'], extension);
-        } else if (typeof exports === 'object') {
-            // Node, CommonJS-like
-            module.exports = extension(require('showdown'));
-        } else {
-            // showdown was not found so we throw
-            throw Error('Could not find showdown library');
+class KeyHandler { // TODO: only supports chords, no hotkeys
+    constructor(element, keybinds, activityChecker, delay) {
+        this.delay = delay || 100; // ms
+        this.keybinds = keybinds;
+        this.activityChecker = activityChecker;
+        this.buffer = [''];
+        this.down = [];
+        this.timeout;
+        this.onchange = ()=>{};
+
+        element.addEventListener('keydown', this.handleDown.bind(this));
+        element.addEventListener('keyup', this.handleUp.bind(this));
+    }
+    handleDown(ev) {
+        if (!this.activityChecker()) return this.abort();
+        if (!this.down.includes(ev.key)) this.down.push(ev.key);
+    }
+    handleUp(ev) {
+        if (!this.activityChecker()) return this.abort();
+        if (this.down[0] !== ev.key) { // key released in different order from pressing... abort this chord
+            console.log(`${ev.key} != ${this.down[0]}! Aborting...`);
+            this.abort();
+            return;
         }
-    }(function (showdown) {
-        // loading extension into shodown
-        showdown.extension('myext', function () {
-            var myext = { /* ... actual extension code ... */ };
-            return [myext];
-        });
-    }));
-    // TODO: anchor links (https://github.com/showdownjs/showdown/issues/344)
+        clearTimeout(this.timeout);
+        this.timeout = setTimeout(this.abort.bind(this), this.delay);
+
+        this.buffer[this.buffer.length-1] += this.down.shift(); // transfer released key to buffer
+
+        this.onchange({keys: this.buffer[this.buffer.length-1]});
+
+        let command = this.buffer[this.buffer.length-1];
+        if (this.attemptKeys(command)) {// if this command went through
+            console.log("command went through!");
+            clearTimeout(this.timeout);
+            this.buffer.push(this.buffer[this.buffer.length-1].slice(command.length)); // push the current key buffer (after slicing off successful command)
+        }
+    }
+    attemptKeys(command, keybinds) {
+        console.log("attempting command", command);
+        keybinds = keybinds || this.keybinds;
+        for (let [regex, next] of keybinds) {
+            let matched = command.match(regex);
+            if (matched !== null) {
+                let sliced = command.slice(matched[0].length);
+                if (typeof next === 'function') if (next(sliced)) return true;
+                else if (next instanceof Map) if (attemptKeys(sliced, next)) return true;
+            }
+        }
+        return false;
+    }
+    abort() {
+        console.log("Abort!")
+        this.down = [];
+        this.buffer.push('');
+    }
 }
 
-class AnDoc{
+class AnDoc {
     constructor(rootElement) {
         this.root = rootElement;
         this.notes = new Map();
+        this.editing = undefined;
 
-        this.converter = new showdown.Converter({
+        this.mdConverter = new showdown.Converter({
             ghCompatibleHeaderId: true,
             parseImgDimensions: true,
             simplifiedAutoLink: true,
@@ -96,6 +131,8 @@ class AnDoc{
             }
         })();
 
+        this.keyHandler = new KeyHandler(document, AnDoc.keybinds, this.keyboardActivityChecker.bind(this), config.keyTimeout);
+
         /// TODO: Unused -- hard to tell which box was right clicked on
         // document.addEventListener('contextmenu', (evt) => {
         //     evt.preventDefault();
@@ -105,6 +142,9 @@ class AnDoc{
         // });
 
         this.main = new Notebox(this, 0, 0);
+    }
+    keyboardActivityChecker() {
+        return typeof this.editing === 'undefined';
     }
     assignId() {
         return this.idGenerator.next().value;
@@ -120,9 +160,22 @@ class AnDoc{
     }
     appendChild(note) {
         this.registerNote(note)
-        this.root.appendChild(note.wrapper);
+        this.root.appendChild(note.dom.wrapper);
     }
 }
+AnDoc.keybinds = (() => {
+    var ret = new Map()
+    ret.set('cool', (cmd) => {
+        console.log(cmd);
+        return true;
+    });
+    ret.set('2l', (cmd) => {
+        if (cmd.length < 2) return false; // request a command of atleast len 2
+        console.log("epic! got a command:", cmd);
+        return true;
+    })
+    return ret;
+})();
 
 class Notebox {
     constructor(root, x, y, w, h, contents) {
@@ -143,29 +196,35 @@ class Notebox {
 
         // update DOM
         (() => {
-            this.wrapper = document.createElement("div");
-            this.wrapper.setAttribute('id', this.id);
-            this.wrapper.setAttribute('class', 'float-wrap');
-            this.wrapper.style.left = this.x + 'px';
-            this.wrapper.style.top = this.y + 'px';
-            this.wrapper.style.width = this.w + 'px';
-            if (this.h) this.wrapper.style.height = this.h + 'px';
+            this.dom = {};
+            this.dom.wrapper = document.createElement("div");
+            this.dom.wrapper.setAttribute('id', this.id);
+            this.dom.wrapper.setAttribute('class', 'float-wrap');
+            this.dom.wrapper.style.left = this.x + 'px';
+            this.dom.wrapper.style.top = this.y + 'px';
+            this.dom.wrapper.style.width = this.w + 'px';
+            if (this.h) this.dom.wrapper.style.height = this.h + 'px';
 
-            this.display = document.createElement("div");
-            this.display.setAttribute('class', 'float-disp');
-            this.display.innerHTML = this.andoc.converter.makeHtml(this.contents);
-            this.wrapper.appendChild(this.display);
+            this.dom.display = document.createElement("div");
+            this.dom.display.setAttribute('class', 'float-disp');
+            this.dom.display.innerHTML = this.andoc.mdConverter.makeHtml(this.contents);
+            this.dom.wrapper.appendChild(this.dom.display);
+
+            this.dom.info = document.createElement("div");
+            this.dom.info.setAttribute('class', 'float-info');
+            this.dom.info.innerHTML = `${this.id}`;
+            this.dom.wrapper.appendChild(this.dom.info);
 
             this.cmEditor = CodeMirror((cm) => {
-                this.wrapper.appendChild(cm); // construct codemirror
+                this.dom.wrapper.appendChild(cm); // construct codemirror
             }, cmOpts);
             this.cmEditor.getWrapperElement().style.display = "none";
 
-            this.wrapper.addEventListener('click', (e) => {
+            this.dom.wrapper.addEventListener('click', (e) => {
                 e.stopPropagation(); // https://stackoverflow.com/a/10554459
                 this.edit();
             });
-            this.wrapper.addEventListener('mouseleave', () => {
+            this.dom.wrapper.addEventListener('mouseleave', () => {
                 this.render();
             });
         })();
@@ -179,7 +238,7 @@ class Notebox {
     // external
     appendChild(child) {
         this.children.set(child.id, child);
-        this.wrapper.appendChild(child.wrapper);
+        this.dom.wrapper.appendChild(child.dom.wrapper);
     }
     // UX
     setMode(mode) {
@@ -188,14 +247,16 @@ class Notebox {
         switch (this.mode) {
             case 0:
                 this.cmEditor.getWrapperElement().style.display = "none";
-                this.display.style.display = "inherit";
+                this.dom.display.style.display = "inherit";
+                if (this.andoc.editing === this.id) this.andoc.editing = undefined;
                 break;
             case 1:
                 this.cmEditor.setSize(this.w, this.h);
-                this.display.style.display = "none";
+                this.dom.display.style.display = "none";
                 this.cmEditor.getWrapperElement().style.display = "inherit";
                 this.cmEditor.refresh();
                 this.cmEditor.focus();
+                this.andoc.editing = this.id;
         }
     }
     edit() {
@@ -207,7 +268,7 @@ class Notebox {
     render() {
         if (this.mode === 0) return;
         this.contents = this.cmEditor.getValue();
-        this.display.innerHTML = this.andoc.converter.makeHtml(this.contents);
+        this.dom.display.innerHTML = this.andoc.mdConverter.makeHtml(this.contents);
 
         this.setMode(0);
     }
@@ -226,13 +287,15 @@ class Notebox {
     }
 }
 
-
-
 CodeMirror.commands.save = function () {
     Notebox.recent.render(); // TODO: use document
 };
 
 window.onload = () => {
+    let keybinds = new Map();
+    keybinds.set('cool', (com) => {console.log('cool:', com);});
+    // let keyHandler = new KeyHandler(document, keybinds, 2000);
+
     var root = new AnDoc(document.getElementById('float-absolute-root'));
     let sub = new Notebox(root.main, 100, 100, 600, 400);
 }

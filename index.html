@@ -13,15 +13,28 @@ body {
 }
 .float-wrap {
     position: absolute;
-    border: 2px solid green;
+    border: 2px solid darkgreen;
     background-color: rgba(0, 0, 0, 0.8);
+}
+.float-wrap:focus {
+    border: 4px solid limegreen;
 }
 .float-disp {
     position: relative;
     padding: 0px;
     margin: 0px;
     color: gray;
+    width: 100%;
+    height: 100%;
     overflow-y: scroll;
+}
+.float-info {
+    position: absolute;
+    right: 0px;
+    bottom: 0px;
+    height: 1em;
+    color: darkgreen;
+    font-family: Courier New, Monospace;
 }
 
 /* https://github.com/showdownjs/showdown/issues/344#issuecomment-470526328 */
