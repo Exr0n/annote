@@ -1,5 +1,7 @@
 "use strict";
 
+var global_andoc;
+
 const config = {
     keyTimeout: 1000
 };
@@ -20,8 +22,8 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         this.activityChecker = activityChecker;
         this.buffer = [''];
         this.down = [];
+        this.listeners = {'change': []};
         this.timeout;
-        this.onchange = ()=>{};
 
         element.addEventListener('keydown', this.handleDown.bind(this));
         element.addEventListener('keyup', this.handleUp.bind(this));
@@ -39,14 +41,20 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         clearTimeout(this.timeout);
         this.timeout = setTimeout(this.abort.bind(this), this.delay);
 
-        this.buffer[this.buffer.length-1] += this.down.shift(); // transfer released key to buffer
+        let key = this.down.shift();
+        if (key.length === 1) { // if it was a normal key
+            this.buffer[this.buffer.length-1] += key; // transfer released key to buffer
 
-        this.onchange({keys: this.buffer[this.buffer.length-1]});
+            this.emit('change', {keys: this.buffer[this.buffer.length-1]});
 
-        let command = this.buffer[this.buffer.length-1];
-        if (this.attemptKeys(command)) {// if this command went through
-            clearTimeout(this.timeout);
-            this.buffer.push(this.buffer[this.buffer.length-1].slice(command.length)); // push the current key buffer (after slicing off successful command)
+            let command = this.buffer[this.buffer.length-1];
+            if (this.attemptKeys(command)) {// if this command went through
+                clearTimeout(this.timeout);
+                this.buffer.push(this.buffer[this.buffer.length-1].slice(command.length)); // push the current key buffer (after slicing off successful command)
+                this.emit('change', {keys: this.buffer[this.buffer.length-1]});
+            }
+        } else {
+            this.abort();
         }
     }
     attemptKeys(command, keybinds) {
@@ -63,9 +71,20 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     }
     abort() {
         console.log("Abort!")
+        clearTimeout(this.timeout);
         this.down = [];
         this.buffer.push('');
-        this.onchange({keys: this.buffer[this.buffer.length-1]});
+        this.emit('change', {keys: this.buffer[this.buffer.length-1]});
+    }
+    async on(name, call) {
+        if (!this.listeners.hasOwnProperty(name)) this.listeners[name] = [];
+        this.listeners[name].push(call);
+    }
+    async emit(name, data) {
+        if (!this.listeners.hasOwnProperty(name)) return;
+        for (let call of this.listeners[name]) {
+            call(data);
+        }
     }
 }
 
@@ -73,6 +92,7 @@ class AnDoc {
     constructor(rootElement) {
         this.root = rootElement;
         this.notes = new Map();
+        this.focused = undefined;
         this.editing = undefined;
 
         this.mdConverter = new showdown.Converter({
@@ -129,7 +149,7 @@ class AnDoc {
             }
         })();
 
-        this.keyHandler = new KeyHandler(document, AnDoc.keybinds, this.keyboardActivityChecker.bind(this), config.keyTimeout);
+        this.keyHandler = new KeyHandler(document, AnDoc.keybinds(this), this.keyboardActivityChecker.bind(this), config.keyTimeout);
         this.dom = {
             messages: document.createElement('div'),
             keyChord: document.createElement('code')
@@ -137,7 +157,7 @@ class AnDoc {
         this.dom.messages.setAttribute('class', 'messages');
         this.dom.messages.appendChild(this.dom.keyChord);
         this.root.appendChild(this.dom.messages);
-        this.keyHandler.onchange = (evt) => { this.dom.keyChord.innerHTML = evt.keys; }
+        this.keyHandler.on('change', (evt) => { this.dom.keyChord.innerHTML = evt.keys; });
 
         /// TODO: Unused -- hard to tell which box was right clicked on
         // document.addEventListener('contextmenu', (evt) => {
@@ -148,6 +168,7 @@ class AnDoc {
         // });
 
         this.main = new Notebox(this, 0, 0);
+        this.focus(this.main);
     }
     keyboardActivityChecker() {
         return typeof this.editing === 'undefined';
@@ -158,10 +179,17 @@ class AnDoc {
     registerNote(note) {
         this.notes.set(note.id, note);
     }
-    createNote(root, x, y, w, h, content) {
-        this.registerNote(note);
+    async focus(note) {
+        if (this.focused === note) return;
+        if (typeof this.focused !== 'undefined') this.focused.blur();
+        this.focused = note;
+        note.focus();
+    }
+    async createNote(root, x, y, w, h, content) {
         root = root || this.root;
         let note = new Notebox(root, x, y, w, h, content);
+        this.registerNote(note);
+        this.focus(note);
         return note;
     }
     appendChild(note) {
@@ -169,7 +197,7 @@ class AnDoc {
         this.root.appendChild(note.dom.wrapper);
     }
 }
-AnDoc.keybinds = (() => {
+AnDoc.keybinds = (doc) => {
     var ret = new Map()
     ret.set('^cool', (cmd) => {
         console.log('cool:', cmd);
@@ -179,9 +207,19 @@ AnDoc.keybinds = (() => {
         if (cmd.length < 2) return false; // request a command of atleast len 2
         console.log("epic! got a command:", cmd);
         return true;
+    });
+
+    ret.set('^f', (cmd) => {
+        console.log("f command called", cmd);
+        if (doc.notes.has(cmd)) {
+            doc.focus(doc.notes.get(cmd));
+            return true;
+        } else {
+            return false;
+        }
     })
     return ret;
-})();
+};
 
 class Notebox {
     constructor(root, x, y, w, h, contents) {
@@ -246,6 +284,12 @@ class Notebox {
         this.children.set(child.id, child);
         this.dom.wrapper.appendChild(child.dom.wrapper);
     }
+    async focus() {
+        this.dom.wrapper.classList.add('doc-focused');
+    }
+    async blur() {
+        this.dom.wrapper.classList.remove('doc-focused'); // unfocus in dom
+    }
     // UX
     setMode(mode) {
         this.syncStaticAttrs();
@@ -302,8 +346,8 @@ window.onload = () => {
     keybinds.set('cool', (com) => {console.log('cool:', com);});
     // let keyHandler = new KeyHandler(document, keybinds, 2000);
 
-    var root = new AnDoc(document.getElementById('float-absolute-root'));
-    let sub = new Notebox(root.main, 100, 100, 600, 400);
+    global_andoc = new AnDoc(document.getElementById('float-absolute-root'));
+    let sub = new Notebox(global_andoc.main, 100, 100, 600, 400);
 }
 
 window.onbeforeunload = () => {
