@@ -1,9 +1,5 @@
 "use strict";
 
-var main;
-
-// converter.setFlavor('github');
-
 // code mirror opts
 const cmOpts = {
     lineNumbers: true,
@@ -44,6 +40,8 @@ const initialize = () => {
 class AnDoc{
     constructor(rootElement) {
         this.root = rootElement;
+        this.notes = new Map();
+
         this.converter = new showdown.Converter({
             ghCompatibleHeaderId: true,
             parseImgDimensions: true,
@@ -64,6 +62,15 @@ class AnDoc{
                     // change errorColor to blue
                     errorColor: '#1500ff',
                 }),
+                () => { // TODO: link icon doesn't appear... (https://github.com/showdownjs/showdown/issues/344#issuecomment-280804955)
+                    var ancTpl = '$1<a id="user-content-$3" class="anchor" href="#$3" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>$4';
+
+                    return [{
+                        type: 'html',
+                        regex: /(<h([1-3]) id="([^"]+?)">)(.*<\/h\2>)/g,
+                        replace: ancTpl
+                    }];
+                }
             ],
         });
 
@@ -89,15 +96,31 @@ class AnDoc{
             }
         })();
 
+        /// TODO: Unused -- hard to tell which box was right clicked on
+        // document.addEventListener('contextmenu', (evt) => {
+        //     evt.preventDefault();
+        //     console.log(evt.target.id)
+        //     this.notes.get(evt.target.id).edit();
+        //     return false;
+        // });
+
         this.main = new Notebox(this, 0, 0);
     }
     assignId() {
-        console.log(this);
         return this.idGenerator.next().value;
     }
-    appendChild(notebox) {
-        console.log("got a root child!")
-        this.root.appendChild(notebox.wrapper);
+    registerNote(note) {
+        this.notes.set(note.id, note);
+    }
+    createNote(root, x, y, w, h, content) {
+        this.registerNote(note);
+        root = root || this.root;
+        let note = new Notebox(root, x, y, w, h, content);
+        return note;
+    }
+    appendChild(note) {
+        this.registerNote(note)
+        this.root.appendChild(note.wrapper);
     }
 }
 
@@ -107,7 +130,6 @@ class Notebox {
         this.y = y || 0;
         this.w = w || document.body.clientWidth;
         this.h = h;
-        this.contents = this.contents  || `<a name=notebox-${this.id}></a>\n`;
 
         this.children = new Map();
         this.mode = 0; // 0 = disp, 1 = edit
@@ -115,10 +137,14 @@ class Notebox {
         if (root instanceof AnDoc) this.andoc = root;
         else this.andoc = root.andoc
         this.id = this.andoc.assignId();
+        this.andoc.registerNote(this);
+
+        this.contents = this.contents  || `<a name=notebox-${this.id}></a>\n`;
 
         // update DOM
         (() => {
             this.wrapper = document.createElement("div");
+            this.wrapper.setAttribute('id', this.id);
             this.wrapper.setAttribute('class', 'float-wrap');
             this.wrapper.style.left = this.x + 'px';
             this.wrapper.style.top = this.y + 'px';
@@ -154,7 +180,6 @@ class Notebox {
     appendChild(child) {
         this.children.set(child.id, child);
         this.wrapper.appendChild(child.wrapper);
-        console.log(this.children);
     }
     // UX
     setMode(mode) {
@@ -170,21 +195,19 @@ class Notebox {
                 this.display.style.display = "none";
                 this.cmEditor.getWrapperElement().style.display = "inherit";
                 this.cmEditor.refresh();
+                this.cmEditor.focus();
         }
     }
     edit() {
         if (this.mode === 1) return;
         this.cmEditor.setValue(this.contents);
-        console.log("MD", this.cmEditor.getValue());
 
         this.setMode(1);
     }
     render() {
         if (this.mode === 0) return;
-        console.log("\nMD", this.cmEditor.getValue());
         this.contents = this.cmEditor.getValue();
         this.display.innerHTML = this.andoc.converter.makeHtml(this.contents);
-        console.log("HTML", this.display.innerHTML);
 
         this.setMode(0);
     }
@@ -215,7 +238,6 @@ window.onload = () => {
 }
 
 window.onbeforeunload = () => {
-    console.log("unload")
     const saveContents = (filename, contents, replacer) => {
         return;
         var element = document.createElement('a');

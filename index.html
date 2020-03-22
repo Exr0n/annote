@@ -21,6 +21,38 @@ body {
     margin: 0px;
     color: gray;
 }
+
+/* https://github.com/showdownjs/showdown/issues/344#issuecomment-470526328 */
+.anchor
+{
+    float: left;
+    line-height: 1;
+    margin-left: -20px;
+    padding-right: 4px
+}
+
+h1 .anchor:focus,
+h2 .anchor:focus,
+h3 .anchor:focus
+{
+  outline: none
+}
+
+h1 .octicon-link,
+h2 .octicon-link,
+h3 .octicon-link
+{
+  color: #1b1f23;
+  vertical-align: middle;
+  visibility: hidden
+}
+
+h1:hover .anchor .octicon-link,
+h2:hover .anchor .octicon-link,
+h3:hover .anchor .octicon-link
+{
+  visibility: visible
+}
         </style>
         <!-- codemirror deps -->
         <link rel=stylesheet href="codemirror/lib/codemirror.css">
