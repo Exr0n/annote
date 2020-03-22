@@ -139,7 +139,7 @@ class Notebox {
         this.id = this.andoc.assignId();
         this.andoc.registerNote(this);
 
-        this.contents = this.contents  || `<a name=notebox-${this.id}></a>\n`;
+        this.contents = contents  || `<a name=notebox-${this.id}></a>\n`;
 
         // update DOM
         (() => {
