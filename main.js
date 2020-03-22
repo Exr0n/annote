@@ -33,7 +33,6 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     handleUp(ev) {
         if (!this.activityChecker()) return this.abort();
         if (this.down[0] !== ev.key) { // key released in different order from pressing... abort this chord
-            console.log(`${ev.key} != ${this.down[0]}! Aborting...`);
             this.abort();
             return;
         }
@@ -46,13 +45,11 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
 
         let command = this.buffer[this.buffer.length-1];
         if (this.attemptKeys(command)) {// if this command went through
-            console.log("command went through!");
             clearTimeout(this.timeout);
             this.buffer.push(this.buffer[this.buffer.length-1].slice(command.length)); // push the current key buffer (after slicing off successful command)
         }
     }
     attemptKeys(command, keybinds) {
-        console.log("attempting command", command);
         keybinds = keybinds || this.keybinds;
         for (let [regex, next] of keybinds) {
             let matched = command.match(regex);
@@ -68,6 +65,7 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         console.log("Abort!")
         this.down = [];
         this.buffer.push('');
+        this.onchange({keys: this.buffer[this.buffer.length-1]});
     }
 }
 
@@ -132,6 +130,14 @@ class AnDoc {
         })();
 
         this.keyHandler = new KeyHandler(document, AnDoc.keybinds, this.keyboardActivityChecker.bind(this), config.keyTimeout);
+        this.dom = {
+            messages: document.createElement('div'),
+            keyChord: document.createElement('code')
+        }
+        this.dom.messages.setAttribute('class', 'messages');
+        this.dom.messages.appendChild(this.dom.keyChord);
+        this.root.appendChild(this.dom.messages);
+        this.keyHandler.onchange = (evt) => { this.dom.keyChord.innerHTML = evt.keys; }
 
         /// TODO: Unused -- hard to tell which box was right clicked on
         // document.addEventListener('contextmenu', (evt) => {
@@ -165,8 +171,8 @@ class AnDoc {
 }
 AnDoc.keybinds = (() => {
     var ret = new Map()
-    ret.set('cool', (cmd) => {
-        console.log(cmd);
+    ret.set('^cool', (cmd) => {
+        console.log('cool:', cmd);
         return true;
     });
     ret.set('2l', (cmd) => {
