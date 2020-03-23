@@ -5,15 +5,6 @@ var global_andoc;
 const config = {
     keyTimeout: 1000
 };
-// code mirror opts
-const cmOpts = {
-    lineNumbers: true,
-    mode: "markdown",
-    theme: "ayu-dark",
-    keyMap: "vim",
-    indentUnit: 4,
-    showCursorWhenSelecting: true
-}
 
 class KeyHandler { // TODO: only supports chords, no hotkeys
     constructor(element, keybinds, activityChecker, delay) {
@@ -32,58 +23,61 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         if (!this.activityChecker()) return this.abort();
         if (!this.down.includes(ev.key)) this.down.push(ev.key);
     }
-    handleUp(ev) {
+    async handleUp(ev) {
         if (!this.activityChecker()) return this.abort();
         if (this.down[0] !== ev.key) { // key released in different order from pressing... abort this chord
             this.abort();
             return;
         }
+        // reset inactivity timeout
         clearTimeout(this.timeout);
         this.timeout = setTimeout(this.abort.bind(this), this.delay);
 
-        let key = this.down.shift();
+        let key = this.down.shift(); // get released key
         if (key.length === 1) { // if it was a normal key
             this.buffer[this.buffer.length-1] += key; // transfer released key to buffer
 
-            this.emit('change', {keys: this.buffer[this.buffer.length-1]});
+            this.emit('change', {keys: this.buffer[this.buffer.length-1], new: key}); // callback to update dom
 
+            // check if the current sequence triggers any commands
             let command = this.buffer[this.buffer.length-1];
-            if (this.attemptKeys(command)) {// if this command went through
-                clearTimeout(this.timeout);
+            if (await this.attemptKeys(command)) { // if this command went through
+                // "soft" abort
+                clearTimeout(this.timeout); // clear abort timeout
                 this.buffer.push(this.buffer[this.buffer.length-1].slice(command.length)); // push the current key buffer (after slicing off successful command)
                 this.emit('change', {keys: this.buffer[this.buffer.length-1]});
             }
-        } else {
-            if (this.buffer[this.buffer.length-1].length === 0) {
-                this.emit('special', key);
+        } else { // special key pressed
+            if (this.buffer[this.buffer.length-1].length === 0) { // if no previous key sequence
+                this.emit('special', key); // emit for outer handling
             }
-            this.abort();
+            this.abort(); // abort any current key sequence
         }
     }
-    attemptKeys(command, keybinds) {
-        keybinds = keybinds || this.keybinds;
-        for (let [regex, next] of keybinds) {
+    async attemptKeys(command, keybinds) {
+        keybinds = keybinds || this.keybinds; // use global keybinds if none were specified
+        for (let [regex, next] of keybinds) { // for each possible command
             let matched = command.match(regex);
-            if (matched !== null) {
-                let sliced = command.slice(matched[0].length);
-                if (typeof next === 'function') if (next(sliced)) return true;
-                else if (next instanceof Map) if (attemptKeys(sliced, next)) return true;
+            if (matched !== null) { // if command matches
+                if (typeof next === 'function') if (next(command)) return true; // if it's a command, run it
+                else if (next instanceof Map) if (await attemptKeys(command, next)) return true; // TODO: untested
             }
         }
-        return false;
+        return false; // nothing matched
     }
     abort() {
-        clearTimeout(this.timeout);
-        this.down = [];
-        this.buffer.push('');
-        this.emit('change', {keys: this.buffer[this.buffer.length-1]});
+        clearTimeout(this.timeout); // clear any abort timeouts
+        this.buffer.push(''); // reset active key sequence
+        this.emit('change', {keys: this.buffer[this.buffer.length-1]}); // emit event to update dom
     }
     async on(name, call) {
-        if (!this.listeners.hasOwnProperty(name)) this.listeners[name] = [];
-        this.listeners[name].push(call);
+        if (!this.listeners.hasOwnProperty(name)) // nothing registered yet
+            this.listeners[name] = []; // initialize so we can push directly
+        this.listeners[name].push(call); // add the callback
     }
     async emit(name, data) {
-        if (!this.listeners.hasOwnProperty(name)) return;
+        if (!this.listeners.hasOwnProperty(name)) return; // this event doesn't have any callbacks
+        // call each callback with the data
         for (let call of this.listeners[name]) {
             call(data);
         }
@@ -92,12 +86,12 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
 
 class AnDoc {
     constructor(rootElement) {
-        this.root = rootElement;
-        this.notes = new Map();
-        this.focused = undefined;
-        this.editing = undefined;
+        this.root = rootElement; // should be `document`
+        this.notes = new Map(); // all notes in this andoc
+        this.focused = undefined; // currently focused note
+        this.editing = undefined; // note that is currently being edited
 
-        this.mdConverter = new showdown.Converter({
+        this.mdConverter = new showdown.Converter({ // markdown converter to be used by noteboxes
             ghCompatibleHeaderId: true,
             parseImgDimensions: true,
             simplifiedAutoLink: true,
@@ -109,7 +103,7 @@ class AnDoc {
             smartIndentationFix: true,
             disableForced4SpacesIndentedSublists: true,
             extensions: [
-                showdownKatex({
+                showdownKatex({ // TODO: doesn't work
                     // maybe you want katex to throwOnError
                     throwOnError: true,
                     // disable displayMode
@@ -227,6 +221,7 @@ class AnDoc {
 AnDoc.keybinds = (doc) => {
     var ret = new Map()
     ret.set('^f', (cmd) => {
+        cmd = cmd.slice(1); // get rid of leading 'f'
         if (doc.notes.has(cmd)) {
             doc.focus(doc.notes.get(cmd));
             return true;
@@ -236,6 +231,14 @@ AnDoc.keybinds = (doc) => {
     })
     return ret;
 };
+AnDoc.codeMirrorOpts = {
+    lineNumbers: true,
+    mode: "markdown",
+    theme: "ayu-dark",
+    keyMap: "vim",
+    indentUnit: 4,
+    showCursorWhenSelecting: true
+}
 
 class Notebox {
     constructor(root, x, y, w, h, contents) {
@@ -277,7 +280,7 @@ class Notebox {
 
             this.cmEditor = CodeMirror((cm) => {
                 this.dom.wrapper.appendChild(cm); // construct codemirror
-            }, cmOpts);
+            }, AnDoc.codeMirrorOpts);
             this.cmEditor.getWrapperElement().style.display = "none";
             this.cmEditor.getWrapperElement().style.zIndex = 1000;
 
@@ -294,7 +297,7 @@ class Notebox {
 
     // static facing
     syncStaticAttrs() {
-        Notebox.recent = this; // TODO: should be a property of the document
+        Notebox.recent = this;
     }
     // external
     appendChild(child) {
