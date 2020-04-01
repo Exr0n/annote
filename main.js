@@ -3,7 +3,8 @@
 var global_andoc;
 
 const config = {
-    keyTimeout: 1000
+    keyTimeout: 1000,
+    scrollSpeed: 100
 };
 
 class KeyHandler { // TODO: only supports chords, no hotkeys
@@ -85,6 +86,12 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
 }
 
 class AnDoc {
+    // class FocusHandler {
+        // constructor(andoc, keyHandlerOptions) {
+            // this.andoc = andoc;
+            // TODO: should this exist to handle focus/edit events? what should it own?
+        // }
+    // }
     constructor(rootElement) {
         this.root = rootElement; // should be `document`
         this.notes = new Map(); // all notes in this andoc
@@ -153,7 +160,7 @@ class AnDoc {
         this.dom.messages.appendChild(this.dom.keyChord);
         this.root.appendChild(this.dom.messages);
 
-        this.keyHandler = new KeyHandler(document, AnDoc.keybinds(this), this.keyboardActivityChecker.bind(this), config.keyTimeout);
+        this.keyHandler = new KeyHandler(document, AnDoc.keybinds(this, window), this.keyboardActivityChecker.bind(this), config.keyTimeout);
         this.keyHandler.on('change', (evt) => { this.dom.keyChord.innerHTML = evt.keys; });
         this.keyHandler.on('special', this.specialKey.bind(this));
 
@@ -179,7 +186,6 @@ class AnDoc {
                 }
                 break;
         }
-
     }
     assignId() {
         return this.idGenerator.next().value;
@@ -214,11 +220,11 @@ class AnDoc {
         return note;
     }
     appendChild(note) {
-        this.registerNote(note)
+        this.registerNote(note);
         this.root.appendChild(note.dom.wrapper);
     }
 }
-AnDoc.keybinds = (doc) => {
+AnDoc.keybinds = (doc, win) => {
     var ret = new Map()
     ret.set('^f', (cmd) => {
         cmd = cmd.slice(1); // get rid of leading 'f'
@@ -228,7 +234,23 @@ AnDoc.keybinds = (doc) => {
         } else {
             return false;
         }
-    })
+    });
+    ret.set('^h$', (cmd) => {
+        win.scrollBy(-config.scrollSpeed, 0);
+        return true;
+    });
+    ret.set('^l$', (cmd) => {
+        win.scrollBy(config.scrollSpeed, 0);
+        return true;
+    });
+    ret.set('^j$', (cmd) => {
+        win.scrollBy(0, config.scrollSpeed);
+        return true;
+    });
+    ret.set('^l$', (cmd) => {
+        win.scrollBy(0, config.scrollSpeed);
+        return true;
+    });
     return ret;
 };
 AnDoc.codeMirrorOpts = {
