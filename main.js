@@ -20,9 +20,11 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         element.addEventListener('keydown', this.handleDown.bind(this));
         element.addEventListener('keyup', this.handleUp.bind(this));
     }
-    handleDown(ev) {
+    async handleDown(ev) {
         if (!this.activityChecker()) return this.abort();
-        if (!this.down.includes(ev.key)) this.down.push(ev.key);
+        if (!await this.attemptKeys(ev.key)) { // try a single key repeating command
+            if (!this.down.includes(ev.key)) this.down.push(ev.key);
+        }
     }
     async handleUp(ev) {
         if (!this.activityChecker()) return this.abort();
@@ -247,8 +249,8 @@ AnDoc.keybinds = (doc, win) => {
         win.scrollBy(0, config.scrollSpeed);
         return true;
     });
-    ret.set('^l$', (cmd) => {
-        win.scrollBy(0, config.scrollSpeed);
+    ret.set('^k$', (cmd) => {
+        win.scrollBy(0, -config.scrollSpeed);
         return true;
     });
     return ret;
@@ -387,7 +389,7 @@ window.onload = () => {
     // let keyHandler = new KeyHandler(document, keybinds, 2000);
 
     global_andoc = new AnDoc(document.getElementById('float-absolute-root'));
-    let sub = new Notebox(global_andoc.main, 100, 100, 600, 400);
+    let sub = new Notebox(global_andoc.main, 1500, 1200, 600, 400);
 }
 
 window.onbeforeunload = () => {
