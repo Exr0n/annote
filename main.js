@@ -4,7 +4,11 @@ var global_andoc;
 
 const config = {
     keyTimeout: 1000,
-    scrollSpeed: 100
+    scrollSpeed: 100,
+    default: {
+        width: 400,
+        height: 400
+    }
 };
 
 class KeyHandler { // TODO: only supports chords, no hotkeys
@@ -232,27 +236,40 @@ AnDoc.keybinds = (doc, win) => {
         cmd = cmd.slice(1); // get rid of leading 'f'
         if (doc.notes.has(cmd)) {
             doc.focus(doc.notes.get(cmd));
+            doc.notes.get(cmd).dom.wrapper.scrollIntoView();
             return true;
         } else {
             return false;
         }
     });
-    ret.set('^h$', (cmd) => {
-        win.scrollBy(-config.scrollSpeed, 0);
-        return true;
-    });
-    ret.set('^l$', (cmd) => {
-        win.scrollBy(config.scrollSpeed, 0);
-        return true;
-    });
-    ret.set('^j$', (cmd) => {
-        win.scrollBy(0, config.scrollSpeed);
-        return true;
-    });
-    ret.set('^k$', (cmd) => {
-        win.scrollBy(0, -config.scrollSpeed);
-        return true;
-    });
+    // vim movement
+    (() => {
+        ret.set('^h$', (cmd) => {
+            win.scrollBy(-config.scrollSpeed, 0);
+            return true;
+        });
+        ret.set('^l$', (cmd) => {
+            win.scrollBy(config.scrollSpeed, 0);
+            return true;
+        });
+        ret.set('^j$', (cmd) => {
+            win.scrollBy(0, config.scrollSpeed);
+            return true;
+        });
+        ret.set('^k$', (cmd) => {
+            win.scrollBy(0, -config.scrollSpeed);
+            return true;
+        });
+    })();
+    // create notes
+    (() => {
+        ret.set('^o$', (cmd) => {
+            console.log('o command called, creating child of', this.focused);
+            doc.createNote(doc.focused, doc.focused.x, doc.focused.y, config.default.width, config.default.height);
+            return true;
+        });
+    })();
+    console.log(ret);
     return ret;
 };
 AnDoc.codeMirrorOpts = {
