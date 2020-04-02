@@ -27,7 +27,9 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     async handleDown(ev) {
         if (!this.activityChecker()) return this.abort();
         if (!await this.attemptKeys(ev.key)) { // try a single key repeating command
-            if (!this.down.includes(ev.key)) this.down.push(ev.key);
+            if (ev.key.length === 1 && !this.down.includes(ev.key)) {
+                this.down.push(ev.key);
+            }
         }
     }
     async handleUp(ev) {
@@ -40,8 +42,12 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         clearTimeout(this.timeout);
         this.timeout = setTimeout(this.abort.bind(this), this.delay);
 
-        let key = this.down.shift(); // get released key
-        if (key.length === 1) { // if it was a normal key
+        if (ev.key.length === 1) { // if it was a normal key
+            let key = this.down.shift(); // get released key
+            if (key !== ev.key) { // key released in different order from pressing... abort this chord
+                this.abort();
+                return;
+            }
             this.buffer[this.buffer.length-1] += key; // transfer released key to buffer
 
             this.emit('change', {keys: this.buffer[this.buffer.length-1], new: key}); // callback to update dom
@@ -56,9 +62,9 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
             }
         } else { // special key pressed
             if (this.buffer[this.buffer.length-1].length === 0) { // if no previous key sequence
-                this.emit('special', key); // emit for outer handling
+                this.emit('special', ev.key); // emit for outer handling
             }
-            this.abort(); // abort any current key sequence
+            // this.abort(); // abort any current key sequence
         }
     }
     async attemptKeys(command, keybinds) {
