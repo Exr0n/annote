@@ -5,9 +5,10 @@ var global_andoc;
 const config = {
     keyTimeout: 1000,
     scrollSpeed: 100,
-    default: {
+    notebox: {
         width: 400,
-        height: 400
+        height: 400,
+        shiftSpeed: 10
     }
 };
 
@@ -34,10 +35,6 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     }
     async handleUp(ev) {
         if (!this.activityChecker()) return this.abort();
-        if (this.down[0] !== ev.key) { // key released in different order from pressing... abort this chord
-            this.abort();
-            return;
-        }
         // reset inactivity timeout
         clearTimeout(this.timeout);
         this.timeout = setTimeout(this.abort.bind(this), this.delay);
@@ -239,7 +236,7 @@ class AnDoc {
 AnDoc.keybinds = (doc, win) => {
     var ret = new Map()
     ret.set('^f', (cmd) => {
-        cmd = cmd.slice(1); // get rid of leading 'f'
+        cmd = prompt("What note would you like to focus?");
         if (doc.notes.has(cmd)) {
             doc.focus(doc.notes.get(cmd));
             doc.notes.get(cmd).dom.wrapper.scrollIntoView();
@@ -267,11 +264,32 @@ AnDoc.keybinds = (doc, win) => {
             return true;
         });
     })();
-    // create notes
+    // modify notes
     (() => {
         ret.set('^o$', (cmd) => {
-            console.log('o command called, creating child of', this.focused);
-            doc.createNote(doc.focused, doc.focused.x, doc.focused.y, config.default.width, config.default.height);
+            doc.createNote(doc.focused, doc.focused.x, doc.focused.y, config.notebox.width, config.notebox.height);
+            return true;
+        });
+        ret.set('^H$', (cmd) => {
+            if (doc.focused.x < config.notebox.shiftSpeed) return true;
+            doc.focused.x -= config.notebox.shiftSpeed;
+            doc.focused.render();
+            return true;
+        });
+        ret.set('^L$', (cmd) => {
+            doc.focused.x += config.notebox.shiftSpeed;
+            doc.focused.render();
+            return true;
+        });
+        ret.set('^K$', (cmd) => {
+            if (doc.focused.y < config.notebox.shiftSpeed) return true;
+            doc.focused.y -= config.notebox.shiftSpeed;
+            doc.focused.render();
+            return true;
+        });
+        ret.set('^J$', (cmd) => {
+            doc.focused.y += config.notebox.shiftSpeed;
+            doc.focused.render();
             return true;
         });
     })();
@@ -313,6 +331,7 @@ class Notebox {
             this.dom.wrapper.style.left = this.x + 'px';
             this.dom.wrapper.style.top = this.y + 'px';
             this.dom.wrapper.style.width = this.w + 'px';
+            this.dom.wrapper.style.zIndex = 0;
             if (this.h) this.dom.wrapper.style.height = this.h + 'px';
 
             this.dom.display = document.createElement("div");
@@ -375,6 +394,9 @@ class Notebox {
         this.setMode(1);
     }
     async render() {
+        this.dom.wrapper.style.left = this.x+"px";
+        this.dom.wrapper.style.top = this.y +"px";
+
         if (this.mode === 0) return;
         this.contents = this.cmEditor.getValue();
         this.dom.display.innerHTML = this.andoc.mdConverter.makeHtml(this.contents);
@@ -430,6 +452,6 @@ window.onbeforeunload = () => {
         document.body.removeChild(element);
     }
 
-    saveContents("untiled", main.export());
+    // saveContents("untiled", main.export());
 }
 
