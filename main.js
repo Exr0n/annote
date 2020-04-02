@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 
 var global_andoc;
 
@@ -28,8 +28,14 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     async handleDown(ev) {
         if (!this.activityChecker()) return this.abort();
         if (!await this.attemptKeys(ev.key)) { // try a single key repeating command
-            if (ev.key.length === 1 && !this.down.includes(ev.key)) {
-                this.down.push(ev.key);
+            if (ev.key.length === 1) {
+                if (!this.down.includes(ev.key)) {
+                    this.down.push(ev.key);
+                }
+            } else { // special key
+                if (this.buffer[this.buffer.length-1].length === 0) { // if no previous key sequence
+                    this.emit('special', ev.key); // emit for outer handling
+                }
             }
         }
     }
@@ -57,11 +63,6 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
                 this.buffer.push(this.buffer[this.buffer.length-1].slice(command.length)); // push the current key buffer (after slicing off successful command)
                 this.emit('change', {keys: this.buffer[this.buffer.length-1]});
             }
-        } else { // special key pressed
-            if (this.buffer[this.buffer.length-1].length === 0) { // if no previous key sequence
-                this.emit('special', ev.key); // emit for outer handling
-            }
-            // this.abort(); // abort any current key sequence
         }
     }
     async attemptKeys(command, keybinds) {
@@ -388,12 +389,15 @@ class Notebox {
         }
     }
     async edit() {
+        console.log("editing", this.id, "called by");
+        console.trace();
         if (this.mode === 1) return;
         this.cmEditor.setValue(this.contents);
 
         this.setMode(1);
     }
     async render() {
+        console.log("rendering", this.id);
         this.dom.wrapper.style.left = this.x+"px";
         this.dom.wrapper.style.top = this.y +"px";
 
@@ -434,7 +438,7 @@ window.onload = () => {
     // let keyHandler = new KeyHandler(document, keybinds, 2000);
 
     global_andoc = new AnDoc(document.getElementById('float-absolute-root'));
-    let sub = new Notebox(global_andoc.main, 1500, 1200, 600, 400);
+    let sub = new Notebox(global_andoc.main, 100, 100, 600, 400);
 }
 
 window.onbeforeunload = () => {
