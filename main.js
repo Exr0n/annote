@@ -27,15 +27,16 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     }
     async handleDown(ev) {
         if (!this.activityChecker()) return this.abort();
-        if (!await this.attemptKeys(ev.key)) { // try a single key repeating command
-            if (ev.key.length === 1) {
-                if (!this.down.includes(ev.key)) {
-                    this.down.push(ev.key);
-                }
-            } else { // special key
-                if (this.buffer[this.buffer.length-1].length === 0) { // if no previous key sequence
-                    this.emit('special', ev.key); // emit for outer handling
-                }
+        if (this.buffer[this.buffer.length-1].length === 0) { // if no previous key sequence
+            if (await this.attemptKeys(ev.key)) { // try a single key repeating command
+                return;
+            } else if (ev.key.length > 1) { // special key
+                this.emit('special', ev.key); // emit for outer handling
+            }
+        }
+        if (ev.key.length === 1) {
+            if (!this.down.includes(ev.key)) {
+                this.down.push(ev.key);
             }
         }
     }
