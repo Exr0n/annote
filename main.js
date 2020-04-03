@@ -34,7 +34,7 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
                 this.emit('special', ev.key); // emit for outer handling
             }
         }
-        if (ev.key.length === 1) {
+        if (ev.key.length === 1) { // if it's a normal key
             if (!this.down.includes(ev.key)) {
                 this.down.push(ev.key);
             }
