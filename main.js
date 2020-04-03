@@ -204,6 +204,7 @@ class AnDoc {
         this.notes.set(note.id, note);
     }
     async focus(note) {
+        console.log('focusing', note.id);
         if (this.focused === note) return;
         if (typeof this.focused !== 'undefined') this.focused.blur();
         this.focused = note;
@@ -225,17 +226,23 @@ class AnDoc {
     async createNote(root, x, y, w, h, content) {
         root = root || this.root;
         let note = new Notebox(root, x, y, w, h, content);
-        this.registerNote(note);
+        this.notes.set(note.id, note);
         this.focus(note);
         return note;
     }
+    async deleteNote(note) {
+        if (note.root instanceof AnDoc) throw new Error("Cannot delete root node!");
+        note.root.removeChild(note);
+        this.notes.delete(note.id);
+        this.focus(note.root);
+        return true;
+    }
     appendChild(note) {
-        this.registerNote(note);
         this.root.appendChild(note.dom.wrapper);
     }
 }
 AnDoc.keybinds = (doc, win) => {
-    var ret = new Map()
+    var ret = new Map();
     ret.set('^f', (cmd) => {
         cmd = prompt("What note would you like to focus?");
         if (doc.notes.has(cmd)) {
@@ -293,6 +300,11 @@ AnDoc.keybinds = (doc, win) => {
             doc.focused.render();
             return true;
         });
+        ret.set('^dd$', (cmd) => {
+            if (doc.focused.root instanceof AnDoc) return false;
+            doc.deleteNote(doc.focused);
+            return true;
+        });
     })();
     console.log(ret);
     return ret;
@@ -308,6 +320,7 @@ AnDoc.codeMirrorOpts = {
 
 class Notebox {
     constructor(root, x, y, w, h, contents) {
+        this.root = root;
         this.x = x || 0;
         this.y = y || 0;
         this.w = w || document.body.clientWidth;
@@ -371,6 +384,10 @@ class Notebox {
         this.children.set(child.id, child);
         this.dom.wrapper.appendChild(child.dom.wrapper);
     }
+    removeChild(child) {
+        child.dom.wrapper.remove();
+        this.children.delete(child.id);
+    }
     // UX
     async setMode(mode) {
         this.syncStaticAttrs();
@@ -389,15 +406,12 @@ class Notebox {
         }
     }
     async edit() {
-        console.log("editing", this.id, "called by");
-        console.trace();
         if (this.mode === 1) return;
         this.cmEditor.setValue(this.contents);
 
         this.setMode(1);
     }
     async render() {
-        console.log("rendering", this.id);
         this.dom.wrapper.style.left = this.x+"px";
         this.dom.wrapper.style.top = this.y +"px";
 
