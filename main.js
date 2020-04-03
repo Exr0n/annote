@@ -164,12 +164,9 @@ class AnDoc {
         })();
 
         this.dom = {
-            messages: document.createElement('div'),
-            keyChord: document.createElement('code')
+            messages: document.getElementById('messages-wrapper'),
+            keyChord: document.getElementById('keypress-display')
         }
-        this.dom.messages.setAttribute('class', 'messages');
-        this.dom.messages.appendChild(this.dom.keyChord);
-        this.root.appendChild(this.dom.messages);
 
         this.keyHandler = new KeyHandler(document, AnDoc.keybinds(this, window), this.keyboardActivityChecker.bind(this), config.keyTimeout);
         this.keyHandler.on('change', (evt) => { this.dom.keyChord.innerHTML = evt.keys; });

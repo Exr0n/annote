@@ -1,0 +1,89 @@
+body {
+    background-color: black;
+    font-color: gray;
+}
+.float-wrap {
+    position: absolute;
+    border: 2px solid darkgreen;
+    background-color: rgba(0, 0, 0, 0.8);
+}
+.float-wrap:focus {
+    border: 4px solid limegreen;
+    z-index: 1000;
+}
+.float-disp {
+    position: relative;
+    padding: 0px;
+    margin: 0px;
+    color: gray;
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
+}
+.float-info {
+    position: absolute;
+    right: 0px;
+    bottom: 0px;
+    height: 1em;
+    color: darkgreen;
+    font-family: Courier New, Monospace;
+}
+
+.doc-focused {
+    border: 2px solid limegreen;
+}
+.doc-focused > .float-info {
+    color: limegreen;
+}
+
+.CodeMirror {
+    height: auto;
+}
+
+.messages {
+    position: fixed;
+    width: 25%;
+    height: 1em;
+    right: 0.5em;
+    bottom: 00.5em;
+    font-family: Courier New, Monospace;
+    color: darkgray;
+}
+.messages code {
+    position: absolute;
+    height: 100%;
+    right: 0;
+}
+
+/* https://github.com/showdownjs/showdown/issues/344#issuecomment-470526328 */
+.anchor
+{
+    float: left;
+    line-height: 1;
+    margin-left: -20px;
+    padding-right: 4px
+}
+
+h1 .anchor:focus,
+h2 .anchor:focus,
+h3 .anchor:focus
+{
+  outline: none
+}
+
+h1 .octicon-link,
+h2 .octicon-link,
+h3 .octicon-link
+{
+  color: #1b1f23;
+  vertical-align: middle;
+  visibility: hidden
+}
+
+h1:hover .anchor .octicon-link,
+h2:hover .anchor .octicon-link,
+h3:hover .anchor .octicon-link
+{
+  visibility: visible
+}
+
