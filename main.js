@@ -16,12 +16,13 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     constructor(element, keybinds, activityChecker, delay) {
         this.delay = delay || 100; // ms
         this.keybinds = keybinds;
-        this.activityChecker = activityChecker;
-        this.buffer = [''];
-        this.down = [];
-        this.listeners = {'change': []};
-        this.timeout;
+        this.activityChecker = activityChecker; // boolean supplier that decides whether to honor key events
+        this.buffer = ['']; // history of commands
+        this.down = []; // currently depressed keys
+        this.listeners = {'change': []}; // event listeners
+        this.timeout; // abort any inputted keys after this many milliseconds
 
+        // register key listeners
         element.addEventListener('keydown', this.handleDown.bind(this));
         element.addEventListener('keyup', this.handleUp.bind(this));
     }
@@ -41,6 +42,7 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
         }
     }
     async handleUp(ev) {
+        // check whether keyhandler should be active
         if (!this.activityChecker()) return this.abort();
         // reset inactivity timeout
         clearTimeout(this.timeout);
@@ -90,19 +92,12 @@ class KeyHandler { // TODO: only supports chords, no hotkeys
     async emit(name, data) {
         if (!this.listeners.hasOwnProperty(name)) return; // this event doesn't have any callbacks
         // call each callback with the data
-        for (let call of this.listeners[name]) {
+        for (let call of this.listeners[name])
             call(data);
-        }
     }
 }
 
 class AnDoc {
-    // class FocusHandler {
-        // constructor(andoc, keyHandlerOptions) {
-            // this.andoc = andoc;
-            // TODO: should this exist to handle focus/edit events? what should it own?
-        // }
-    // }
     constructor(rootElement) {
         this.root = rootElement; // should be `document`
         this.notes = new Map(); // all notes in this andoc
@@ -119,31 +114,13 @@ class AnDoc {
             tasklists: true,
             ghMentions: false,
             smartIndentationFix: true,
-            disableForced4SpacesIndentedSublists: true,
-            extensions: [
-                showdownKatex({ // TODO: doesn't work
-                    // maybe you want katex to throwOnError
-                    throwOnError: true,
-                    // disable displayMode
-                    displayMode: false,
-                    // change errorColor to blue
-                    errorColor: '#1500ff',
-                }),
-                () => { // TODO: link icon doesn't appear... (https://github.com/showdownjs/showdown/issues/344#issuecomment-280804955)
-                    var ancTpl = '$1<a id="user-content-$3" class="anchor" href="#$3" aria-hidden="true"><svg aria-hidden="true" class="octicon octicon-link" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>$4';
-
-                    return [{
-                        type: 'html',
-                        regex: /(<h([1-3]) id="([^"]+?)">)(.*<\/h\2>)/g,
-                        replace: ancTpl
-                    }];
-                }
-            ],
+            disableForced4SpacesIndentedSublists: true
+            // TODO: katex extension + custom anchor
         });
 
         this.idGenerator = (function *() {
             var letters = 'abcdefghijklmnopqrstuvwxyz';
-            const increment = (str, idx) => {
+            const increment = (str, idx) => { // increment the letter at `idx` in `str`
                 let newChar = String.fromCharCode((str.charCodeAt(id.length+idx)-97 +1)%26+97);
                 return str.slice(0, id.length+idx) + newChar + str.slice(id.length+idx+1);
             }
@@ -152,87 +129,87 @@ class AnDoc {
                 yield id;
                 // shift id: a, b, ..., z, aa, ab, ...
                 let idx = 0;
-                do {
-                    --idx;
-                    if (-idx-1 == id.length) {
-                        id = 'a' + id;
+                do { // decrement each index in turn, with carrying
+                    --idx; // next index to decrement
+                    if (-idx-1 == id.length) { // if at the end of the string
+                        id = 'a' + id; // start over with one more `a` ("aaa" -> "aaaa")
                         break;
                     }
-                    id = increment(id, idx);
-                } while (id[id.length+idx] == letters[0])
+                    id = increment(id, idx); // increment the letter we should increment
+                } while (id[id.length+idx] == letters[0]) // do the next one if the one we just incremented was 'a', aka carry
             }
         })();
 
-        this.dom = {
+        this.dom = { // get dom elements for displaying messages in the bottom right
             messages: document.getElementById('messages-wrapper'),
             keyChord: document.getElementById('keypress-display')
         }
 
-        this.keyHandler = new KeyHandler(document, AnDoc.keybinds(this, window), this.keyboardActivityChecker.bind(this), config.keyTimeout);
-        this.keyHandler.on('change', (evt) => { this.dom.keyChord.innerHTML = evt.keys; });
-        this.keyHandler.on('special', this.specialKey.bind(this));
+        // create keyhandler
+        this.keyHandler = new KeyHandler(
+            document, // element to listen on
+            AnDoc.keybinds(this, window), // keybinds
+            this.keyboardActivityChecker.bind(this), // activity checker -- returns whether to honor keybinds
+            config.keyTimeout // key timeout
+        );
+        this.keyHandler.on('change', (evt) => { // event listener--update key display
+            this.dom.keyChord.innerHTML = evt.keys;
+        });
+        this.keyHandler.on('special', this.specialKey.bind(this)); // handle special keys (meta, enter, etc); TODO: jank
 
-        /// TODO: Unused -- hard to tell which box was right clicked on
-        // document.addEventListener('contextmenu', (evt) => {
-        //     evt.preventDefault();
-        //     console.log(evt.target.id)
-        //     this.notes.get(evt.target.id).edit();
-        //     return false;
-        // });
-
-        this.main = new Notebox(this, 0, 0);
-        this.focus(this.main);
+        // Initialize UX
+        this.main = new Notebox(this, 0, 0); // create root notebox
+        this.focus(this.main); // focus it
     }
     keyboardActivityChecker() {
-        return typeof this.editing === 'undefined';
+        return typeof this.editing === 'undefined'; // listen for keys if not currently in a codemirror
     }
     async specialKey(key) {
         switch (key) {
             case "Enter":
-                if (typeof this.focused !== 'undefined') {
-                    this.edit(this.focused);
+                if (typeof this.focused !== 'undefined') { // if focused
+                    this.edit(this.focused); // edit that notebox
                 }
                 break;
         }
     }
     assignId() {
-        return this.idGenerator.next().value;
-    }
-    registerNote(note) {
-        this.notes.set(note.id, note);
+        // TODO: swappable id's; fill in gaps from deleted notes; id's based on tree structure? (parent/child)
+        return this.idGenerator.next().value; // get the next ID from generator
     }
     async focus(note) {
-        console.log('focusing', note.id);
         if (this.focused === note) return;
-        if (typeof this.focused !== 'undefined') this.focused.blur();
-        this.focused = note;
-        note.focus();
+        if (typeof this.focused !== 'undefined')
+            this.focused.blur(); // blur previous focused note
+        this.focused = note; // update internal state
+        note.focus(); // focus the note (UX)
     }
     async edit(note) {
-        if (typeof this.editing !== 'undefined') this.editing.render();
-        this.editing = note;
-        this.focus(note);
-        note.edit();
+        if (typeof this.editing !== 'undefined') // if editing something
+            this.editing.render(); // stop editing it
+        this.editing = note; // update internal state
+        this.focus(note); // update focus on UX
+        note.edit(); // have note show codemirror, etc
     }
-    async unedit() {
+    async unedit() { // stop editing all notes
         if (typeof this.editing === 'undefined') return;
-        this.editing.render();
-        this.focus(this.editing);
-        this.editing = undefined;
-        document.body.focus();
+        this.editing.render(); // render the note that's currently being edited
+        this.focus(this.editing); // focus the rendered note
+        this.editing = undefined; // update internal state
     }
     async createNote(root, x, y, w, h, content) {
-        root = root || this.root;
-        let note = new Notebox(root, x, y, w, h, content);
-        this.notes.set(note.id, note);
-        this.focus(note);
+        root = root || this.root; // root of the note, either passed or the root note
+        let note = new Notebox(root, x, y, w, h, content); // construct the new note
+        this.notes.set(note.id, note); // register theh note (update internal state)
+        this.focus(note); // focus the new note
         return note;
     }
     async deleteNote(note) {
-        if (note.root instanceof AnDoc) throw new Error("Cannot delete root node!");
-        note.root.removeChild(note);
-        this.notes.delete(note.id);
-        this.focus(note.root);
+        if (note.root instanceof AnDoc) // disallow deleting the bottom-most note
+            throw new Error("Cannot delete root node!");
+        note.root.removeChild(note); // remove this note as a child of its parent
+        this.notes.delete(note.id); // unregister note from internal state
+        this.focus(note.root); // focus the root of the deleted note
         return true;
     }
     appendChild(note) {
@@ -330,7 +307,6 @@ class Notebox {
         if (root instanceof AnDoc) this.andoc = root;
         else this.andoc = root.andoc
         this.id = this.andoc.assignId();
-        this.andoc.registerNote(this);
 
         this.contents = contents  || `<a name=notebox-${this.id}></a>\n`;
 
@@ -447,10 +423,9 @@ CodeMirror.commands.save = function () {
 window.onload = () => {
     let keybinds = new Map();
     keybinds.set('cool', (com) => {console.log('cool:', com);});
-    // let keyHandler = new KeyHandler(document, keybinds, 2000);
 
     global_andoc = new AnDoc(document.getElementById('float-absolute-root'));
-    let sub = new Notebox(global_andoc.main, 100, 100, 600, 400);
+    global_andoc.createNote(global_andoc.main, 100, 100, 600, 400);
 }
 
 window.onbeforeunload = () => {
