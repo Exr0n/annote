@@ -218,18 +218,15 @@ class AnDoc {
 }
 AnDoc.keybinds = (doc, win) => {
     var ret = new Map();
-    ret.set('^f', (cmd) => {
+    ret.set('^f', (cmd) => { // focus a note; TODO: jank--how to deal with overlapping prefixes w/o alert?
         cmd = prompt("What note would you like to focus?");
-        if (doc.notes.has(cmd)) {
-            doc.focus(doc.notes.get(cmd));
-            doc.notes.get(cmd).dom.wrapper.scrollIntoView();
-            return true;
-        } else {
-            return false;
-        }
+        if (doc.notes.has(cmd)) // if note exists
+            doc.focus(doc.notes.get(cmd)); // focus the note
+        return true;
     });
     // vim movement
     (() => {
+        // scroll by default config speed in each direction for each hjkl
         ret.set('^h$', (cmd) => {
             win.scrollBy(-config.scrollSpeed, 0);
             return true;
@@ -250,9 +247,11 @@ AnDoc.keybinds = (doc, win) => {
     // modify notes
     (() => {
         ret.set('^o$', (cmd) => {
+            // create a new note that is a child of the currentnly focused note
             doc.createNote(doc.focused, doc.focused.x, doc.focused.y, config.notebox.width, config.notebox.height);
             return true;
         });
+        // move each note `config.notebox.shiftSpeed` for each `HJKL`
         ret.set('^H$', (cmd) => {
             if (doc.focused.x < config.notebox.shiftSpeed) return true;
             doc.focused.x -= config.notebox.shiftSpeed;
@@ -275,13 +274,13 @@ AnDoc.keybinds = (doc, win) => {
             doc.focused.render();
             return true;
         });
-        ret.set('^dd$', (cmd) => {
-            if (doc.focused.root instanceof AnDoc) return false;
-            doc.deleteNote(doc.focused);
+        ret.set('^dd$', (cmd) => { // delete note
+            if (doc.focused.root instanceof AnDoc) // don't delete root note
+                return false;
+            doc.deleteNote(doc.focused); // delete the note
             return true;
         });
     })();
-    console.log(ret);
     return ret;
 };
 AnDoc.codeMirrorOpts = {
@@ -397,6 +396,7 @@ class Notebox {
     }
     async focus() {
         this.dom.wrapper.classList.add('doc-focused');
+        this.dom.wrapper.scrollIntoView();
     }
     async blur() {
         this.dom.wrapper.classList.remove('doc-focused'); // unfocus in dom
@@ -430,7 +430,6 @@ window.onload = () => {
 
 window.onbeforeunload = () => {
     const saveContents = (filename, contents, replacer) => {
-        return;
         var element = document.createElement('a');
         element.setAttribute('href', 'data:application/javascript;charset=utf-8,' + JSON.stringify(contents, replacer, 4));
         element.setAttribute('download', filename);
